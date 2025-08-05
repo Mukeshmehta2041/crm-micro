@@ -89,11 +89,14 @@ public class UserServiceImpl implements UserService {
 
       return userMapper.toResponse(savedUser);
 
+    } catch (UserAlreadyExistsException | UserValidationException | UserNotFoundException e) {
+      // Re-throw custom exceptions so they can be handled by GlobalExceptionHandler
+      throw e;
     } catch (DataIntegrityViolationException e) {
       log.error("Data integrity violation while creating user: {}", e.getMessage());
       throw new UserAlreadyExistsException("User with provided username or email already exists");
     } catch (Exception e) {
-      log.error("Error creating user: {}", e.getMessage(), e);
+      log.error("Unexpected error creating user: {}", e.getMessage(), e);
       throw new RuntimeException("Failed to create user", e);
     }
   }

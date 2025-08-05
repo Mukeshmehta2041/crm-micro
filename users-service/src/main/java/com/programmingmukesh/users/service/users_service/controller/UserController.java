@@ -166,25 +166,11 @@ public class UserController {
       @Valid @RequestBody CreateUserRequest request) {
     log.info("Creating user with username: {}", request.getUsername());
 
-    try {
-      UserResponse user = userService.createUser(request);
-      log.info("User created successfully with ID: {}", user.getId());
+    UserResponse user = userService.createUser(request);
+    log.info("User created successfully with ID: {}", user.getId());
 
-      return ResponseEntity.status(HttpStatus.CREATED)
-          .body(ApiResponse.success(user, "User created successfully"));
-    } catch (UserAlreadyExistsException e) {
-      log.warn("User creation failed - already exists: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.CONFLICT)
-          .body(ApiResponse.error("User already exists", e.getMessage()));
-    } catch (UserValidationException e) {
-      log.warn("User creation failed - validation error: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Validation failed", e.getMessage()));
-    } catch (Exception e) {
-      log.error("User creation failed with unexpected error: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to create user"));
-    }
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(user, "User created successfully"));
   }
 
   /**
@@ -223,22 +209,8 @@ public class UserController {
       @PathVariable @NotNull @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") String userId) {
     log.debug("Fetching user by ID: {}", userId);
 
-    try {
-      UserResponse user = userService.getUserById(UUID.fromString(userId));
-      return ResponseEntity.ok(ApiResponse.success(user));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found with ID: {}", userId);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (IllegalArgumentException e) {
-      log.warn("Invalid UUID format: {}", userId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Invalid user ID format", "User ID must be a valid UUID"));
-    } catch (Exception e) {
-      log.error("Error fetching user by ID: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch user"));
-    }
+    UserResponse user = userService.getUserById(UUID.fromString(userId));
+    return ResponseEntity.ok(ApiResponse.success(user));
   }
 
   /**
@@ -252,18 +224,8 @@ public class UserController {
       @PathVariable @NotBlank String username) {
     log.debug("Fetching user by username: {}", username);
 
-    try {
-      UserResponse user = userService.getUserByUsername(username);
-      return ResponseEntity.ok(ApiResponse.success(user));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found with username: {}", username);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error fetching user by username: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch user"));
-    }
+    UserResponse user = userService.getUserByUsername(username);
+    return ResponseEntity.ok(ApiResponse.success(user));
   }
 
   /**
@@ -277,18 +239,8 @@ public class UserController {
       @PathVariable @NotBlank @Pattern(regexp = "^[A-Za-z0-9+_.-]+@(.+)$") String email) {
     log.debug("Fetching user by email: {}", email);
 
-    try {
-      UserResponse user = userService.getUserByEmail(email);
-      return ResponseEntity.ok(ApiResponse.success(user));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found with email: {}", email);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error fetching user by email: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch user"));
-    }
+    UserResponse user = userService.getUserByEmail(email);
+    return ResponseEntity.ok(ApiResponse.success(user));
   }
 
   /**
@@ -365,17 +317,11 @@ public class UserController {
     log.debug("Fetching all users with pagination - page: {}, size: {}, sort: {}, direction: {}",
         page, size, sort, direction);
 
-    try {
-      Sort.Direction sortDirection = Sort.Direction.fromString(direction.toUpperCase());
-      Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+    Sort.Direction sortDirection = Sort.Direction.fromString(direction.toUpperCase());
+    Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
 
-      Page<UserResponse> users = userService.getAllUsers(pageable);
-      return ResponseEntity.ok(ApiResponse.success(users));
-    } catch (Exception e) {
-      log.error("Error fetching all users: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch users"));
-    }
+    Page<UserResponse> users = userService.getAllUsers(pageable);
+    return ResponseEntity.ok(ApiResponse.success(users));
   }
 
   /**
@@ -389,14 +335,8 @@ public class UserController {
       @PathVariable @NotBlank String department) {
     log.debug("Fetching users by department: {}", department);
 
-    try {
-      List<UserResponse> users = userService.getUsersByDepartment(department);
-      return ResponseEntity.ok(ApiResponse.success(users));
-    } catch (Exception e) {
-      log.error("Error fetching users by department: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch users"));
-    }
+    List<UserResponse> users = userService.getUsersByDepartment(department);
+    return ResponseEntity.ok(ApiResponse.success(users));
   }
 
   /**
@@ -410,14 +350,8 @@ public class UserController {
       @PathVariable @NotBlank String company) {
     log.debug("Fetching users by company: {}", company);
 
-    try {
-      List<UserResponse> users = userService.getUsersByCompany(company);
-      return ResponseEntity.ok(ApiResponse.success(users));
-    } catch (Exception e) {
-      log.error("Error fetching users by company: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to fetch users"));
-    }
+    List<UserResponse> users = userService.getUsersByCompany(company);
+    return ResponseEntity.ok(ApiResponse.success(users));
   }
 
   /**
@@ -433,32 +367,10 @@ public class UserController {
       @Valid @RequestBody CreateUserRequest request) {
     log.info("Updating user with ID: {}", userId);
 
-    try {
-      UserResponse user = userService.updateUser(UUID.fromString(userId), request);
-      log.info("User updated successfully with ID: {}", userId);
+    UserResponse user = userService.updateUser(UUID.fromString(userId), request);
+    log.info("User updated successfully with ID: {}", userId);
 
-      return ResponseEntity.ok(ApiResponse.success(user, "User updated successfully"));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found for update with ID: {}", userId);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (UserAlreadyExistsException e) {
-      log.warn("User update failed - conflict: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.CONFLICT)
-          .body(ApiResponse.error("User conflict", e.getMessage()));
-    } catch (UserValidationException e) {
-      log.warn("User update failed - validation error: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Validation failed", e.getMessage()));
-    } catch (IllegalArgumentException e) {
-      log.warn("Invalid UUID format: {}", userId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Invalid user ID format", "User ID must be a valid UUID"));
-    } catch (Exception e) {
-      log.error("User update failed with unexpected error: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to update user"));
-    }
+    return ResponseEntity.ok(ApiResponse.success(user, "User updated successfully"));
   }
 
   /**
@@ -472,24 +384,10 @@ public class UserController {
       @PathVariable @NotNull @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") String userId) {
     log.info("Deleting user with ID: {}", userId);
 
-    try {
-      userService.deleteUser(UUID.fromString(userId));
-      log.info("User deleted successfully with ID: {}", userId);
+    userService.deleteUser(UUID.fromString(userId));
+    log.info("User deleted successfully with ID: {}", userId);
 
-      return ResponseEntity.ok(ApiResponse.success(null, "User deleted successfully"));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found for deletion with ID: {}", userId);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (IllegalArgumentException e) {
-      log.warn("Invalid UUID format: {}", userId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Invalid user ID format", "User ID must be a valid UUID"));
-    } catch (Exception e) {
-      log.error("User deletion failed with unexpected error: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to delete user"));
-    }
+    return ResponseEntity.ok(ApiResponse.success(null, "User deleted successfully"));
   }
 
   /**
@@ -503,24 +401,10 @@ public class UserController {
       @PathVariable @NotNull @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") String userId) {
     log.info("Activating user with ID: {}", userId);
 
-    try {
-      userService.activateUser(UUID.fromString(userId));
-      log.info("User activated successfully with ID: {}", userId);
+    userService.activateUser(UUID.fromString(userId));
+    log.info("User activated successfully with ID: {}", userId);
 
-      return ResponseEntity.ok(ApiResponse.success(null, "User activated successfully"));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found for activation with ID: {}", userId);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (IllegalArgumentException e) {
-      log.warn("Invalid UUID format: {}", userId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Invalid user ID format", "User ID must be a valid UUID"));
-    } catch (Exception e) {
-      log.error("User activation failed with unexpected error: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to activate user"));
-    }
+    return ResponseEntity.ok(ApiResponse.success(null, "User activated successfully"));
   }
 
   /**
@@ -534,24 +418,10 @@ public class UserController {
       @PathVariable @NotNull @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") String userId) {
     log.info("Deactivating user with ID: {}", userId);
 
-    try {
-      userService.deactivateUser(UUID.fromString(userId));
-      log.info("User deactivated successfully with ID: {}", userId);
+    userService.deactivateUser(UUID.fromString(userId));
+    log.info("User deactivated successfully with ID: {}", userId);
 
-      return ResponseEntity.ok(ApiResponse.success(null, "User deactivated successfully"));
-    } catch (UserNotFoundException e) {
-      log.warn("User not found for deactivation with ID: {}", userId);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("User not found", e.getMessage()));
-    } catch (IllegalArgumentException e) {
-      log.warn("Invalid UUID format: {}", userId);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error("Invalid user ID format", "User ID must be a valid UUID"));
-    } catch (Exception e) {
-      log.error("User deactivation failed with unexpected error: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to deactivate user"));
-    }
+    return ResponseEntity.ok(ApiResponse.success(null, "User deactivated successfully"));
   }
 
   /**
@@ -567,14 +437,8 @@ public class UserController {
       @RequestParam(required = false) String email) {
     log.debug("Checking if user exists - username: {}, email: {}", username, email);
 
-    try {
-      boolean exists = userService.userExists(username, email);
-      return ResponseEntity.ok(ApiResponse.success(exists));
-    } catch (Exception e) {
-      log.error("Error checking user existence: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to check user existence"));
-    }
+    boolean exists = userService.userExists(username, email);
+    return ResponseEntity.ok(ApiResponse.success(exists));
   }
 
   /**
@@ -586,14 +450,8 @@ public class UserController {
   public ResponseEntity<ApiResponse<Long>> getUserCount() {
     log.debug("Getting user count");
 
-    try {
-      long count = userService.getUserCount();
-      return ResponseEntity.ok(ApiResponse.success(count));
-    } catch (Exception e) {
-      log.error("Error getting user count: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Internal server error", "Failed to get user count"));
-    }
+    long count = userService.getUserCount();
+    return ResponseEntity.ok(ApiResponse.success(count));
   }
 
   /**

@@ -77,3 +77,8 @@ app:
   name: Auth Service
   version: 1.0.0
   description: Authentication and Authorization Service for CRM System
+
+# Service URLs
+users:
+  service:
+    url: http://localhost:8081
