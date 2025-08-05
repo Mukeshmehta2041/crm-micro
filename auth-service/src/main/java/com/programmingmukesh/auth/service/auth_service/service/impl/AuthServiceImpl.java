@@ -77,7 +77,14 @@ public class AuthServiceImpl implements AuthService {
       // Step 6: Handle exceptions
       log.error("Registration failed for email: {} from IP: {}", request.getEmail(), clientIpAddress, e);
       logSecurityEvent("REGISTRATION_FAILED", request.getEmail(), clientIpAddress, e.getMessage());
-      throw new RuntimeException("Registration failed: " + e.getMessage(), e);
+      
+      // If the exception message is already user-friendly (doesn't contain technical details), use it directly
+      String errorMessage = e.getMessage();
+      if (errorMessage != null && isUserFriendlyMessage(errorMessage)) {
+        throw new RuntimeException(errorMessage, e);
+      } else {
+        throw new RuntimeException("Registration failed: " + errorMessage, e);
+      }
     }
   }
 
@@ -188,9 +195,21 @@ public class AuthServiceImpl implements AuthService {
       log.info("User profile created successfully with ID: {}", userResponse.getData().getId());
       return userResponse.getData().getId();
 
+    } catch (org.springframework.web.client.HttpClientErrorException e) {
+      log.error("HTTP error when creating user profile: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+      
+      // Try to extract user-friendly error message from the response
+      String userFriendlyMessage = extractUserFriendlyErrorMessage(e.getResponseBodyAsString());
+      if (userFriendlyMessage != null && !userFriendlyMessage.trim().isEmpty()) {
+        throw new RuntimeException(userFriendlyMessage);
+      }
+      
+      // Generic fallback message
+      throw new RuntimeException("Unable to create user profile. Please try again later.");
+      
     } catch (Exception e) {
       log.error("Failed to create user profile in users service", e);
-      throw new RuntimeException("Failed to create user profile: " + e.getMessage(), e);
+      throw new RuntimeException("Unable to create user profile. Please try again later.");
     }
   }
 
@@ -383,6 +402,55 @@ public class AuthServiceImpl implements AuthService {
         return request;
       }
     }
+  }
+
+  /**
+   * Checks if an error message is user-friendly (doesn't contain technical details).
+   * 
+   * @param message the error message to check
+   * @return true if the message is user-friendly
+   */
+  private boolean isUserFriendlyMessage(String message) {
+    if (message == null || message.trim().isEmpty()) {
+      return false;
+    }
+    
+    // Check if message contains technical indicators that suggest it's not user-friendly
+    String lowerMessage = message.toLowerCase();
+    return !lowerMessage.contains("exception") &&
+           !lowerMessage.contains("error:") &&
+           !lowerMessage.contains("failed to") &&
+           !lowerMessage.contains("http") &&
+           !lowerMessage.contains("stack") &&
+           !lowerMessage.contains("null") &&
+           !lowerMessage.contains("class") &&
+           !lowerMessage.contains("java.") &&
+           !lowerMessage.contains("org.springframework") &&
+           message.length() < 200; // User-friendly messages should be concise
+  }
+
+  /**
+   * Extracts user-friendly error message from users service error response.
+   * 
+   * @param responseBody the error response body
+   * @return user-friendly error message or null if extraction fails
+   */
+  private String extractUserFriendlyErrorMessage(String responseBody) {
+    try {
+      // Parse the JSON response to extract the message field
+      com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+      com.fasterxml.jackson.databind.JsonNode jsonNode = mapper.readTree(responseBody);
+      
+      // Simply return the message field if it exists - users service should provide user-friendly messages
+      if (jsonNode.has("message")) {
+        return jsonNode.get("message").asText();
+      }
+      
+    } catch (Exception e) {
+      log.debug("Failed to parse error response: {}", e.getMessage());
+    }
+    
+    return null;
   }
 
   /**
