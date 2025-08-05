@@ -71,6 +71,38 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
+# OpenAPI Documentation Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    doc-expansion: none
+    disable-swagger-default-url: true
+    display-request-duration: true
+    display-operation-id: true
+    show-extensions: true
+    show-common-extensions: true
+    try-it-out-enabled: true
+    filter: true
+    syntax-highlight:
+      activated: true
+      theme: agate
+  packages-to-scan: com.programmingmukesh.users.service.users_service.controller
+  paths-to-match: /api/**
+  show-actuator: true
+  group-configs:
+    - group: 'users-api'
+      display-name: 'Users API'
+      paths-to-match: '/api/v1/users/**'
+    - group: 'system-api'
+      display-name: 'System API'
+      paths-to-match: '/actuator/**'
+
 # Custom Application Properties
 app:
   name: Users Service

@@ -71,7 +71,7 @@ public class User extends BaseEntity {
   @Column(name = "username", nullable = false, unique = true, length = 100)
   @NotBlank(message = "Username cannot be blank")
   @Size(min = 3, max = 100, message = "Username must be between 3 and 100 characters")
-  @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Username can only contain letters, numbers, underscores, and hyphens")
+  @Pattern(regexp = "^[a-zA-Z0-9._-]+$", message = "Username can only contain letters, numbers, dots, underscores, and hyphens")
   private String username;
 
   /**
