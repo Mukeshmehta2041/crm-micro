@@ -1,4 +1,29 @@
 services:
+  # Service Registry (Eureka Server)
+  service-registry:
+    build:
+      context: ../service-registry
+      dockerfile: Dockerfile
+    container_name: crm-service-registry-dev
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    environment:
+      - JAVA_OPTS=-Xms128m -Xmx256m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      - EUREKA_INSTANCE_HOSTNAME=service-registry
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - registry_logs:/var/log/service-registry
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -53,7 +78,12 @@ services:
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
       - SPRING_JPA_SHOW_SQL=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
+      - EUREKA_INSTANCE_HOSTNAME=auth-service
     depends_on:
+      service-registry:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
@@ -75,7 +105,7 @@ services:
     container_name: crm-users-service-dev
     restart: unless-stopped
     ports:
-      - "8082:8080"
+      - "8082:8082"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
@@ -86,13 +116,19 @@ services:
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
       - SPRING_JPA_SHOW_SQL=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
+      - EUREKA_INSTANCE_HOSTNAME=users-service
+      - SERVER_PORT=8082
     depends_on:
+      service-registry:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -118,6 +154,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  registry_logs:
     driver: local
   auth_logs:
     driver: local

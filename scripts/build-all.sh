@@ -83,6 +83,7 @@ main() {
     
     # List of services to build
     services=(
+        "service-registry:service-registry"
         "auth-service:auth-service"
         "users-service:users-service"
     )
