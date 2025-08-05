@@ -42,4 +42,4 @@ application-prod.yml
 
 # Temporary files
 *.tmp
-*.temp
+*.temp 

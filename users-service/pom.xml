@@ -8,11 +8,11 @@
 		<version>3.5.4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.programmingmukesh.auth.service</groupId>
-	<artifactId>auth-service</artifactId>
+	<groupId>com.programmingmukesh.users.service</groupId>
+	<artifactId>users-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>auth-service</name>
-	<description>AuthService</description>
+	<name>users-service</name>
+	<description>UsersService</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -102,4 +102,4 @@
 		</plugins>
 	</build>
 
-</project>
+</project> 
