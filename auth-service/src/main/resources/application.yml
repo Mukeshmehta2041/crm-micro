@@ -7,7 +7,7 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://postgres:5432/db_crm}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/db_crm}
     username: ${DATABASE_USERNAME:user_crm}
     password: ${DATABASE_PASSWORD:password_crm}
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
@@ -23,7 +23,7 @@ spring:
   jpa:
     database-platform: ${JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}
+      ddl-auto: ${JPA_DDL_AUTO:create-drop}
     show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
@@ -94,8 +94,8 @@ eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
+    register-with-eureka: false
+    fetch-registry: false
   instance:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 30
