@@ -7,9 +7,9 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://postgres:5432/db_crm}
-    username: ${DATABASE_USERNAME:user_crm}
-    password: ${DATABASE_PASSWORD:password_crm}
+    url: ${DATABASE_URL:jdbc:postgresql://ep-jolly-breeze-a1amwp6u-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
+    username: ${DATABASE_USERNAME:neondb_owner}
+    password: ${DATABASE_PASSWORD:npg_wN7vFE4VHSMY}
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     hikari:
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
@@ -23,7 +23,7 @@ spring:
   jpa:
     database-platform: ${JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}
+      ddl-auto: ${JPA_DDL_AUTO:updat}
     show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:

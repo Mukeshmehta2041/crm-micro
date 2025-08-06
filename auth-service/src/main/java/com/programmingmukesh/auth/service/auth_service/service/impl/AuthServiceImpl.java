@@ -1,6 +1,7 @@
 package com.programmingmukesh.auth.service.auth_service.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.Random;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,8 +78,9 @@ public class AuthServiceImpl implements AuthService {
       // Step 6: Handle exceptions
       log.error("Registration failed for email: {} from IP: {}", request.getEmail(), clientIpAddress, e);
       logSecurityEvent("REGISTRATION_FAILED", request.getEmail(), clientIpAddress, e.getMessage());
-      
-      // If the exception message is already user-friendly (doesn't contain technical details), use it directly
+
+      // If the exception message is already user-friendly (doesn't contain technical
+      // details), use it directly
       String errorMessage = e.getMessage();
       if (errorMessage != null && isUserFriendlyMessage(errorMessage)) {
         throw new RuntimeException(errorMessage, e);
@@ -139,7 +141,7 @@ public class AuthServiceImpl implements AuthService {
   private RegistrationResponse performRegistration(CreateUserRequest request, String clientIpAddress,
       String userAgent) {
     // Step 5.1: Create user in external User Management Service
-    UUID userId = createUserInExternalService(request);
+    UUID userId = UUID.randomUUID();
 
     // Step 5.2: Save user credentials in the local database
     UserCredential userCredential = saveUserCredentials(request, userId);
@@ -152,65 +154,6 @@ public class AuthServiceImpl implements AuthService {
 
     // Step 5.5: Return success response
     return buildRegistrationResponse(request, userId, userCredential, verificationTokenId);
-  }
-
-  /**
-   * Creates a user in the external User Management Service.
-   * 
-   * @param request the registration request
-   * @return the created user ID
-   * @throws RuntimeException if user creation fails
-   */
-  private UUID createUserInExternalService(CreateUserRequest request) {
-    try {
-      log.info("Creating user profile in users service for username: {}", request.getUsername());
-
-      // Prepare user creation request for users service
-      UserCreationRequest userRequest = UserCreationRequest.builder()
-          .username(request.getUsername())
-          .firstName(request.getFirstName())
-          .lastName(request.getLastName())
-          .email(request.getEmail())
-          .displayName(request.getDisplayName())
-          .build();
-
-      // Set up HTTP headers
-      HttpHeaders headers = new HttpHeaders();
-      headers.setContentType(MediaType.APPLICATION_JSON);
-
-      // Create HTTP entity
-      HttpEntity<UserCreationRequest> entity = new HttpEntity<>(userRequest, headers);
-
-      // Call users service
-      String usersServiceEndpoint = usersServiceUrl + "/api/v1/users";
-      ApiResponseWrapper userResponse = restTemplate.postForObject(
-          usersServiceEndpoint,
-          entity,
-          ApiResponseWrapper.class);
-
-      if (userResponse == null || !userResponse.isSuccess() || userResponse.getData() == null || userResponse.getData().getId() == null) {
-        throw new RuntimeException("Failed to create user profile in users service");
-      }
-
-      log.info("User profile created successfully with ID: {}", userResponse.getData().getId());
-      return userResponse.getData().getId();
-
-    } catch (org.springframework.web.client.HttpClientErrorException e) {
-      log.error("HTTP error when creating user profile: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-      
-      // Try to extract user-friendly error message from the response
-      String userFriendlyMessage = extractUserFriendlyErrorMessage(e.getResponseBodyAsString());
-      if (userFriendlyMessage != null && !userFriendlyMessage.trim().isEmpty()) {
-        throw new RuntimeException(userFriendlyMessage);
-      }
-      
-      // Generic fallback message
-      throw new RuntimeException("Unable to create user profile. Please try again later.");
-      
-    } catch (Exception e) {
-      log.error("Failed to create user profile in users service", e);
-      throw new RuntimeException("Unable to create user profile. Please try again later.");
-    }
   }
 
   /**
@@ -405,7 +348,8 @@ public class AuthServiceImpl implements AuthService {
   }
 
   /**
-   * Checks if an error message is user-friendly (doesn't contain technical details).
+   * Checks if an error message is user-friendly (doesn't contain technical
+   * details).
    * 
    * @param message the error message to check
    * @return true if the message is user-friendly
@@ -414,19 +358,20 @@ public class AuthServiceImpl implements AuthService {
     if (message == null || message.trim().isEmpty()) {
       return false;
     }
-    
-    // Check if message contains technical indicators that suggest it's not user-friendly
+
+    // Check if message contains technical indicators that suggest it's not
+    // user-friendly
     String lowerMessage = message.toLowerCase();
     return !lowerMessage.contains("exception") &&
-           !lowerMessage.contains("error:") &&
-           !lowerMessage.contains("failed to") &&
-           !lowerMessage.contains("http") &&
-           !lowerMessage.contains("stack") &&
-           !lowerMessage.contains("null") &&
-           !lowerMessage.contains("class") &&
-           !lowerMessage.contains("java.") &&
-           !lowerMessage.contains("org.springframework") &&
-           message.length() < 200; // User-friendly messages should be concise
+        !lowerMessage.contains("error:") &&
+        !lowerMessage.contains("failed to") &&
+        !lowerMessage.contains("http") &&
+        !lowerMessage.contains("stack") &&
+        !lowerMessage.contains("null") &&
+        !lowerMessage.contains("class") &&
+        !lowerMessage.contains("java.") &&
+        !lowerMessage.contains("org.springframework") &&
+        message.length() < 200; // User-friendly messages should be concise
   }
 
   /**
@@ -440,16 +385,17 @@ public class AuthServiceImpl implements AuthService {
       // Parse the JSON response to extract the message field
       com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
       com.fasterxml.jackson.databind.JsonNode jsonNode = mapper.readTree(responseBody);
-      
-      // Simply return the message field if it exists - users service should provide user-friendly messages
+
+      // Simply return the message field if it exists - users service should provide
+      // user-friendly messages
       if (jsonNode.has("message")) {
         return jsonNode.get("message").asText();
       }
-      
+
     } catch (Exception e) {
       log.debug("Failed to parse error response: {}", e.getMessage());
     }
-    
+
     return null;
   }
 

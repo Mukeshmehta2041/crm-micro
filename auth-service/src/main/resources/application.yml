@@ -7,9 +7,9 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/db_crm}
-    username: ${DATABASE_USERNAME:user_crm}
-    password: ${DATABASE_PASSWORD:password_crm}
+    url: ${DATABASE_URL:jdbc:postgresql://ep-jolly-breeze-a1amwp6u-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
+    username: ${DATABASE_USERNAME:neondb_owner}
+    password: ${DATABASE_PASSWORD:npg_wN7vFE4VHSMY}
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     hikari:
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
@@ -105,3 +105,35 @@ eureka:
 users:
   service:
     url: ${USERS_SERVICE_URL:http://users-service}
+
+# OpenAPI Documentation Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
+    tags-sorter: alpha
+    operations-sorter: alpha
+    doc-expansion: none
+    disable-swagger-default-url: true
+    display-request-duration: true
+    display-operation-id: true
+    show-extensions: true
+    show-common-extensions: true
+    try-it-out-enabled: true
+    filter: true
+    syntax-highlight:
+      activated: true
+      theme: agate
+  packages-to-scan: com.programmingmukesh.auth.service.auth_service.controller
+  paths-to-match: /api/**
+  show-actuator: true
+  group-configs:
+    - group: 'auth-api'
+      display-name: 'Authentication API'
+      paths-to-match: '/api/v1/auth/**'
+    - group: 'system-api'
+      display-name: 'System API'
+      paths-to-match: '/actuator/**'

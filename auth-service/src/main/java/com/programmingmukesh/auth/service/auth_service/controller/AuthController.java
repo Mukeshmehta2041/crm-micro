@@ -17,27 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Authentication Controller for user authentication operations.
  * 
- * <p>
- * This controller provides REST endpoints for:
- * </p>
- * <ul>
- * <li>User registration and account creation</li>
- * <li>User login and authentication</li>
- * <li>Password management</li>
- * <li>Multi-factor authentication</li>
- * <li>Account security operations</li>
- * </ul>
- * 
- * <p>
- * <strong>API Endpoints:</strong>
- * </p>
- * <ul>
- * <li>POST /api/v1/auth/register - Register a new user</li>
- * <li>POST /api/v1/auth/login - User login (planned)</li>
- * <li>POST /api/v1/auth/logout - User logout (planned)</li>
- * <li>POST /api/v1/auth/refresh - Refresh token (planned)</li>
- * </ul>
- * 
  * @author Programming Mukesh
  * @version 1.0
  * @since 2024
@@ -55,52 +34,6 @@ public class AuthController {
   /**
    * Registers a new user with authentication credentials.
    * 
-   * <p>
-   * This endpoint:
-   * </p>
-   * <ul>
-   * <li>Validates the registration request</li>
-   * <li>Creates a user profile in the users service</li>
-   * <li>Creates authentication credentials</li>
-   * <li>Returns the registration result</li>
-   * </ul>
-   * 
-   * <p>
-   * <strong>Request Body:</strong>
-   * </p>
-   * 
-   * <pre>
-   * {
-   *   "username": "johndoe",
-   *   "email": "john.doe@example.com",
-   *   "password": "SecurePass123!",
-   *   "firstName": "John",
-   *   "lastName": "Doe",
-   *   "displayName": "John Doe"
-   * }
-   * </pre>
-   * 
-   * <p>
-   * <strong>Response:</strong>
-   * </p>
-   * 
-   * <pre>
-   * {
-   *   "userId": "550e8400-e29b-41d4-a716-446655440000",
-   *   "username": "johndoe",
-   *   "email": "john.doe@example.com",
-   *   "firstName": "John",
-   *   "lastName": "Doe",
-   *   "displayName": "John Doe",
-   *   "emailVerified": false,
-   *   "mfaEnabled": false,
-   *   "createdAt": "2024-01-01T10:00:00",
-   *   "updatedAt": "2024-01-01T10:00:00",
-   *   "message": "User registered successfully",
-   *   "status": "SUCCESS"
-   * }
-   * </pre>
-   * 
    * @param request the registration request containing user data
    * @return ResponseEntity containing the registration response
    */
@@ -111,17 +44,6 @@ public class AuthController {
     log.info("Received registration request for username: {}", request.getUsername());
 
     try {
-      // Validate request
-      if (request == null) {
-        log.error("Registration request is null");
-        return ResponseEntity.badRequest()
-            .body(ApiResponse.<RegistrationResponse>builder()
-                .success(false)
-                .message("Registration request cannot be null")
-                .build());
-      }
-
-      // Process registration
       RegistrationResponse response = authService.register(request);
 
       log.info("Registration successful for username: {}", request.getUsername());
