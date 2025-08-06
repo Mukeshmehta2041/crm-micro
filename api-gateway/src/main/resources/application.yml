@@ -10,7 +10,7 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
           lower-case-service-id: true
       
       # Global CORS Configuration
@@ -30,18 +30,7 @@ spring:
           predicates:
             - Path=/api/v1/auth/**
           filters:
-            - name: CircuitBreaker
-              args:
-                name: auth-service-cb
-                fallbackUri: forward:/fallback/auth
-            - name: Retry
-              args:
-                retries: 3
-                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
-                methods: GET,POST
-                backoff:
-                  firstBackoff: 50ms
-                  maxBackoff: 500ms
+            - StripPrefix=0
         
         # Users Service Routes
         - id: users-service
