@@ -1,0 +1,67 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  # Gateway Configuration
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false  # Disable for local testing
+      
+      # Global CORS Configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "*"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: false
+      
+      # Simple routes for local testing
+      routes:
+        # Gateway info routes
+        - id: gateway-info
+          uri: http://localhost:8080
+          predicates:
+            - Path=/gateway/**
+          filters:
+            - StripPrefix=0
+
+# Disable Eureka for local testing
+eureka:
+  client:
+    enabled: false
+
+# Disable Redis for local testing
+spring:
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.programmingmukesh.gateway: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# JWT Configuration
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000 # 24 hours

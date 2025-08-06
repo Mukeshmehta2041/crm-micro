@@ -117,9 +117,7 @@ $RECYCLE.BIN/
 .nfs*
 
 # Application specific
-application-local.yml
-application-dev.yml
-application-prod.yml
+# Environment variables files
 *.env
 .env.local
 .env.development.local

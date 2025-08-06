@@ -29,9 +29,7 @@ Thumbs.db
 logs/
 
 # Application specific
-application-local.yml
-application-dev.yml
-application-prod.yml
+# Environment variables files
 *.env
 
 # Compiled files

@@ -1,24 +1,36 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8081}
 
 spring:
   application:
     name: auth-service
   
-  # Database Configuration - Profile specific
-  # datasource configuration is handled by profile-specific files
+  # Database Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://postgres:5432/db_crm}
+    username: ${DATABASE_USERNAME:user_crm}
+    password: ${DATABASE_PASSWORD:password_crm}
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:5}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
 
   # JPA Configuration
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: ${JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: false
+        format_sql: ${JPA_FORMAT_SQL:false}
+        use_sql_comments: ${JPA_SQL_COMMENTS:false}
         jdbc:
-          batch_size: 20
+          batch_size: ${JPA_BATCH_SIZE:20}
         order_inserts: true
         order_updates: true
 
@@ -33,11 +45,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: ${MANAGEMENT_ENDPOINTS:health,info,metrics,prometheus}
       base-path: /actuator
   endpoint:
     health:
-      show-details: always
+      show-details: ${MANAGEMENT_HEALTH_DETAILS:always}
       show-components: always
     info:
       enabled: true
@@ -58,31 +70,30 @@ management:
         enabled: true
     tags:
       application: ${spring.application.name}
-      environment: ${spring.profiles.active:default}
+      environment: ${APP_ENVIRONMENT:default}
 
 # Logging Configuration
 logging:
   level:
-    com.programmingmukesh.auth: INFO
-    org.springframework.security: INFO
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
-    com.zaxxer.hikari: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    com.programmingmukesh.auth: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:WARN}
+    com.zaxxer.hikari: ${LOG_LEVEL_HIKARI:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
 
 # Custom Application Properties
 app:
   name: Auth Service
   version: 1.0.0
   description: Authentication and Authorization Service for CRM System
+  environment: ${APP_ENVIRONMENT:default}
 
 # Eureka Configuration
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
   instance:
@@ -93,4 +104,4 @@ eureka:
 # Service URLs
 users:
   service:
-    url: http://users-service
+    url: ${USERS_SERVICE_URL:http://users-service}
