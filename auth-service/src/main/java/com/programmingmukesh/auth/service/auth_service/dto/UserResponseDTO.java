@@ -82,4 +82,6 @@ public class UserResponseDTO {
   private String emergencyContactPhone;
   private String emergencyContactRelationship;
   private String customFields;
+  private Boolean mfaEnabled;
+  private String mfaMethod;
 }

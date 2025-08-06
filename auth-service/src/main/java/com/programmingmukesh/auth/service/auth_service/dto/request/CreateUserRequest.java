@@ -58,7 +58,7 @@ public class CreateUserRequest {
    */
   @NotBlank(message = "Password cannot be blank")
   @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
-  @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$", message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
+  @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#\\-_+=])[A-Za-z\\d@$!%*?&#\\-_+=]+$", message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
   private String password;
 
   /**
@@ -113,7 +113,7 @@ public class CreateUserRequest {
     boolean hasLower = password.matches(".*[a-z].*");
     boolean hasUpper = password.matches(".*[A-Z].*");
     boolean hasDigit = password.matches(".*\\d.*");
-    boolean hasSpecial = password.matches(".*[@$!%*?&].*");
+    boolean hasSpecial = password.matches(".*[@$!%*?&#\\-_+=].*");
 
     return hasLower && hasUpper && hasDigit && hasSpecial;
   }
