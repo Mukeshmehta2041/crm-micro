@@ -86,6 +86,7 @@ main() {
         "service-registry:service-registry"
         "auth-service:auth-service"
         "users-service:users-service"
+        "api-gateway:api-gateway"
     )
     
     local build_errors=0

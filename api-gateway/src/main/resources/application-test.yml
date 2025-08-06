@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  # Disable Redis for testing
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+  
+  # Gateway Configuration
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      
+      # Simple routes for testing
+      routes:
+        - id: gateway-info
+          uri: http://httpbin.org
+          predicates:
+            - Path=/gateway/**
+          filters:
+            - StripPrefix=1
+
+# Disable Eureka for testing
+eureka:
+  client:
+    enabled: false
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.programmingmukesh.gateway: DEBUG
+    root: INFO
