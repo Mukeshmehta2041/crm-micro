@@ -104,7 +104,18 @@ eureka:
 # Service URLs
 users:
   service:
-    url: ${USERS_SERVICE_URL:http://users-service}
+    url: ${USERS_SERVICE_URL:http://localhost:8082}
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: none
+  circuitbreaker:
+    enabled: true
 
 # OpenAPI Documentation Configuration
 springdoc:

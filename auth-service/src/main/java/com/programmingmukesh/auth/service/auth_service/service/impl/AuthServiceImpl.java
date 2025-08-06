@@ -1,39 +1,28 @@
 package com.programmingmukesh.auth.service.auth_service.service.impl;
 
-import java.time.LocalDateTime;
-import java.util.Random;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
+import feign.FeignException;
+
+import com.programmingmukesh.auth.service.auth_service.client.UsersServiceClient;
+import com.programmingmukesh.auth.service.auth_service.dto.ApiResponse;
+import com.programmingmukesh.auth.service.auth_service.dto.UserResponseDTO;
 import com.programmingmukesh.auth.service.auth_service.dto.request.CreateUserRequest;
 import com.programmingmukesh.auth.service.auth_service.dto.response.RegistrationResponse;
 import com.programmingmukesh.auth.service.auth_service.entity.UserCredential;
+import com.programmingmukesh.auth.service.auth_service.repository.UserCredentialRepository;
 import com.programmingmukesh.auth.service.auth_service.service.AuthService;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Implementation of the Authentication Service.
- * 
- * <p>
- * This service handles user registration by:
- * </p>
- * <ul>
- * <li>Validating user input and checking uniqueness</li>
- * <li>Creating user profile in the users service</li>
- * <li>Creating authentication credentials</li>
- * <li>Hashing passwords securely</li>
- * <li>Managing security settings and audit logging</li>
- * </ul>
+ * Implementation of AuthService providing authentication operations.
  * 
  * @author Programming Mukesh
  * @version 1.0
@@ -41,438 +30,213 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@Transactional
 public class AuthServiceImpl implements AuthService {
 
   @Autowired
-  private RestTemplate restTemplate;
+  private UserCredentialRepository userCredentialRepository;
 
   @Autowired
   private PasswordEncoder passwordEncoder;
 
   @Autowired
-  private HttpServletRequest httpRequest;
-
-  @Value("${users.service.url:http://localhost:8082}")
-  private String usersServiceUrl;
+  private UsersServiceClient usersServiceClient;
 
   @Override
   public RegistrationResponse register(CreateUserRequest request) {
-    // Step 1: Extract client information
-    String clientIpAddress = getClientIpAddress(httpRequest);
-    String userAgent = httpRequest.getHeader("User-Agent");
+    log.info("Processing registration for user: {}", request.getUsername());
 
-    // Step 2: Log registration request
-    log.info("Registration attempt for email: {} from IP: {}", request.getEmail(), clientIpAddress);
+    // Validate request
+    validateRegistrationRequest(request);
+
+    // Check if user already exists
+    if (userCredentialRepository.existsByUsername(request.getUsername())) {
+      throw new IllegalArgumentException(
+          "Username '" + request.getUsername() + "' is already taken. Please choose a different username.");
+    }
+
+    if (userCredentialRepository.existsByEmail(request.getEmail())) {
+      throw new IllegalArgumentException(
+          "Email '" + request.getEmail() + "' is already registered. Please use a different email address.");
+    }
+
+    // Create user in users-service via Feign client
+    ResponseEntity<ApiResponse<UserResponseDTO>> userResponse;
+    UUID userId;
 
     try {
-      // Step 3: Validate if user/email already exists
-      validateUserUniqueness(request);
+      userResponse = usersServiceClient.createUser(request);
 
-      // Step 4: Validate password
-      validatePassword(request.getPassword());
+      if (!userResponse.getStatusCode().is2xxSuccessful() ||
+          userResponse.getBody() == null ||
+          !userResponse.getBody().isSuccess()) {
 
-      // Step 5: Main registration logic
-      return performRegistration(request, clientIpAddress, userAgent);
+        // Extract the actual error message from users-service response
+        String errorMessage = "Failed to create user in users service";
+        if (userResponse.getBody() != null && userResponse.getBody().getMessage() != null) {
+          errorMessage = userResponse.getBody().getMessage();
+        }
 
-    } catch (Exception e) {
-      // Step 6: Handle exceptions
-      log.error("Registration failed for email: {} from IP: {}", request.getEmail(), clientIpAddress, e);
-      logSecurityEvent("REGISTRATION_FAILED", request.getEmail(), clientIpAddress, e.getMessage());
-
-      // If the exception message is already user-friendly (doesn't contain technical
-      // details), use it directly
-      String errorMessage = e.getMessage();
-      if (errorMessage != null && isUserFriendlyMessage(errorMessage)) {
-        throw new RuntimeException(errorMessage, e);
-      } else {
-        throw new RuntimeException("Registration failed: " + errorMessage, e);
+        // Handle different HTTP status codes appropriately
+        if (userResponse.getStatusCode().value() == 409) {
+          // Conflict - user already exists
+          throw new IllegalArgumentException(errorMessage);
+        } else if (userResponse.getStatusCode().value() == 400) {
+          // Bad request - validation error
+          throw new IllegalArgumentException(errorMessage);
+        } else {
+          // Other errors
+          throw new RuntimeException(errorMessage);
+        }
       }
+
+      // Extract user ID from the response
+      userId = extractUserIdFromResponse(userResponse.getBody());
+
+    } catch (FeignException e) {
+      // Handle Feign exceptions (HTTP errors from users-service)
+      log.warn("Users service returned error for user '{}': HTTP {} - {}",
+          request.getUsername(), e.status(), e.getMessage());
+
+      // Parse the error response to extract the actual message
+      String errorMessage = extractErrorMessageFromFeignException(e);
+
+      if (e.status() == 409) {
+        // Conflict - user already exists
+        throw new IllegalArgumentException(errorMessage);
+      } else if (e.status() == 400) {
+        // Bad request - validation error
+        throw new IllegalArgumentException(errorMessage);
+      } else {
+        // Other HTTP errors
+        throw new RuntimeException(errorMessage);
+      }
+    } catch (IllegalArgumentException e) {
+      // Re-throw validation/conflict errors as-is
+      throw e;
+    } catch (Exception e) {
+      log.warn("Users service communication failed for user '{}': {}",
+          request.getUsername(), e.getMessage());
+      throw new RuntimeException("User service is temporarily unavailable. Please try again later.");
     }
-  }
 
-  /**
-   * Validates that the user's email and username are unique.
-   * 
-   * @param request the registration request
-   * @throws IllegalArgumentException if email or username already exists
-   */
-  private void validateUserUniqueness(CreateUserRequest request) {
-    // TODO: Implement actual database checks
-    // For now, we'll use the validation methods in the request DTO
-    if (!request.isEmailAvailable()) {
-      throw new IllegalArgumentException("Email address is already registered");
-    }
+    // Create user credential with the user ID from users service
+    UserCredential userCredential = createUserCredential(request, userId);
 
-    if (!request.isUsernameAvailable()) {
-      throw new IllegalArgumentException("Username is already taken");
-    }
-  }
+    // Save to database
+    UserCredential savedCredential = userCredentialRepository.save(userCredential);
 
-  /**
-   * Validates the password strength.
-   * 
-   * @param password the password to validate
-   * @throws IllegalArgumentException if password doesn't meet requirements
-   */
-  private void validatePassword(String password) {
-    if (password == null || password.length() < 8) {
-      throw new IllegalArgumentException("Password must be at least 8 characters long");
-    }
+    log.info("User registered successfully: {}", savedCredential.getUsername());
 
-    boolean hasLower = password.matches(".*[a-z].*");
-    boolean hasUpper = password.matches(".*[A-Z].*");
-    boolean hasDigit = password.matches(".*\\d.*");
-    boolean hasSpecial = password.matches(".*[@$!%*?&].*");
-
-    if (!hasLower || !hasUpper || !hasDigit || !hasSpecial) {
-      throw new IllegalArgumentException(
-          "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
-    }
-  }
-
-  /**
-   * Performs the main registration logic.
-   * 
-   * @param request         the registration request
-   * @param clientIpAddress the client's IP address
-   * @param userAgent       the client's user agent
-   * @return RegistrationResponse with the registration result
-   */
-  private RegistrationResponse performRegistration(CreateUserRequest request, String clientIpAddress,
-      String userAgent) {
-    // Step 5.1: Create user in external User Management Service
-    UUID userId = UUID.randomUUID();
-
-    // Step 5.2: Save user credentials in the local database
-    UserCredential userCredential = saveUserCredentials(request, userId);
-
-    // Step 5.3: Generate email verification token (placeholder)
-    String verificationTokenId = generateEmailVerificationToken(userId);
-
-    // Step 5.4: Log successful registration event
-    logSecurityEvent("REGISTRATION_SUCCESS", request.getEmail(), clientIpAddress, "User registered successfully");
-
-    // Step 5.5: Return success response
-    return buildRegistrationResponse(request, userId, userCredential, verificationTokenId);
-  }
-
-  /**
-   * Saves user credentials in the local database.
-   * 
-   * @param request the registration request
-   * @param userId  the user ID
-   * @return the created user credential
-   */
-  private UserCredential saveUserCredentials(CreateUserRequest request, UUID userId) {
-    log.info("Creating authentication credentials for userId: {}", userId);
-
-    // Hash the password securely
-    String hashedPassword = passwordEncoder.encode(request.getPassword());
-
-    UserCredential userCredential = new UserCredential();
-    userCredential.setUserId(userId);
-    userCredential.setUsername(request.getUsername());
-    userCredential.setEmail(request.getEmail());
-    userCredential.setPasswordHash(hashedPassword);
-    userCredential.setEmailVerified(false);
-    userCredential.setMfaEnabled(false);
-    userCredential.setFailedLoginAttempts(0);
-
-    // TODO: Save to database using repository
-    // userCredentialRepository.save(userCredential);
-
-    log.info("Authentication credentials created successfully for userId: {}", userId);
-    return userCredential;
-  }
-
-  /**
-   * Generates an email verification token for the user.
-   * 
-   * @param userId the user ID
-   * @return the verification token ID
-   */
-  private String generateEmailVerificationToken(UUID userId) {
-    // TODO: Implement actual email verification token generation
-    log.info("Generating email verification token for userId: {}", userId);
-    return UUID.randomUUID().toString();
-  }
-
-  /**
-   * Builds the registration response.
-   * 
-   * @param request             the registration request
-   * @param userId              the user ID
-   * @param userCredential      the user credential
-   * @param verificationTokenId the verification token ID
-   * @return the registration response
-   */
-  private RegistrationResponse buildRegistrationResponse(CreateUserRequest request, UUID userId,
-      UserCredential userCredential, String verificationTokenId) {
+    // Build response
     return RegistrationResponse.builder()
-        .userId(userId)
-        .username(request.getUsername())
-        .email(request.getEmail())
+        .userId(savedCredential.getUserId())
+        .username(savedCredential.getUsername())
+        .email(savedCredential.getEmail())
         .firstName(request.getFirstName())
         .lastName(request.getLastName())
         .displayName(request.getDisplayName())
-        .emailVerified(false)
-        .mfaEnabled(false)
-        .createdAt(LocalDateTime.now())
-        .updatedAt(LocalDateTime.now())
-        .message("User registered successfully")
-        .status("SUCCESS")
-        .metadata("Verification token: " + verificationTokenId)
+        .emailVerified(savedCredential.getEmailVerified())
+        .mfaEnabled(savedCredential.getMfaEnabled())
+        .createdAt(savedCredential.getCreatedAt())
+        .updatedAt(savedCredential.getUpdatedAt())
         .build();
   }
 
-  /**
-   * Extracts the client IP address from the HTTP request.
-   * 
-   * @param request the HTTP request
-   * @return the client IP address
-   */
-  private String getClientIpAddress(HttpServletRequest request) {
-    String xForwardedFor = request.getHeader("X-Forwarded-For");
-    if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-      return xForwardedFor.split(",")[0].trim();
+  private void validateRegistrationRequest(CreateUserRequest request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Registration request cannot be null");
     }
 
-    String xRealIp = request.getHeader("X-Real-IP");
-    if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
-      return xRealIp;
+    if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+      throw new IllegalArgumentException("Username is required");
     }
 
-    return request.getRemoteAddr();
-  }
-
-  /**
-   * Logs security events for audit purposes.
-   * 
-   * @param eventType the type of security event
-   * @param email     the user's email
-   * @param ipAddress the client IP address
-   * @param details   additional event details
-   */
-  private void logSecurityEvent(String eventType, String email, String ipAddress, String details) {
-    log.info("SECURITY_EVENT: {} - Email: {} - IP: {} - Details: {}", eventType, email, ipAddress, details);
-    // TODO: Implement actual audit logging service
-  }
-
-  /**
-   * Internal DTO for user creation request to users service.
-   */
-  private static class UserCreationRequest {
-    private String username;
-    private String firstName;
-    private String lastName;
-    private String email;
-    private String displayName;
-
-    // Getters and setters
-    public String getUsername() {
-      return username;
+    if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+      throw new IllegalArgumentException("Email address is required");
     }
 
-    public void setUsername(String username) {
-      this.username = username;
+    if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+      throw new IllegalArgumentException("Password is required");
     }
 
-    public String getFirstName() {
-      return firstName;
+    if (request.getFirstName() == null || request.getFirstName().trim().isEmpty()) {
+      throw new IllegalArgumentException("First name is required");
     }
 
-    public void setFirstName(String firstName) {
-      this.firstName = firstName;
-    }
-
-    public String getLastName() {
-      return lastName;
-    }
-
-    public void setLastName(String lastName) {
-      this.lastName = lastName;
-    }
-
-    public String getEmail() {
-      return email;
-    }
-
-    public void setEmail(String email) {
-      this.email = email;
-    }
-
-    public String getDisplayName() {
-      return displayName;
-    }
-
-    public void setDisplayName(String displayName) {
-      this.displayName = displayName;
-    }
-
-    public static Builder builder() {
-      return new Builder();
-    }
-
-    public static class Builder {
-      private UserCreationRequest request = new UserCreationRequest();
-
-      public Builder username(String username) {
-        request.username = username;
-        return this;
-      }
-
-      public Builder firstName(String firstName) {
-        request.firstName = firstName;
-        return this;
-      }
-
-      public Builder lastName(String lastName) {
-        request.lastName = lastName;
-        return this;
-      }
-
-      public Builder email(String email) {
-        request.email = email;
-        return this;
-      }
-
-      public Builder displayName(String displayName) {
-        request.displayName = displayName;
-        return this;
-      }
-
-      public UserCreationRequest build() {
-        return request;
-      }
+    if (request.getLastName() == null || request.getLastName().trim().isEmpty()) {
+      throw new IllegalArgumentException("Last name is required");
     }
   }
 
-  /**
-   * Checks if an error message is user-friendly (doesn't contain technical
-   * details).
-   * 
-   * @param message the error message to check
-   * @return true if the message is user-friendly
-   */
-  private boolean isUserFriendlyMessage(String message) {
-    if (message == null || message.trim().isEmpty()) {
-      return false;
-    }
+  private UserCredential createUserCredential(CreateUserRequest request, UUID userId) {
+    UserCredential userCredential = UserCredential.builder()
+        .userId(userId)
+        .username(request.getUsername().toLowerCase().trim())
+        .email(request.getEmail().toLowerCase().trim())
+        .passwordHash(passwordEncoder.encode(request.getPassword()))
+        .emailVerified(false)
+        .mfaEnabled(false)
+        .failedLoginAttempts(0)
+        .build();
 
-    // Check if message contains technical indicators that suggest it's not
-    // user-friendly
-    String lowerMessage = message.toLowerCase();
-    return !lowerMessage.contains("exception") &&
-        !lowerMessage.contains("error:") &&
-        !lowerMessage.contains("failed to") &&
-        !lowerMessage.contains("http") &&
-        !lowerMessage.contains("stack") &&
-        !lowerMessage.contains("null") &&
-        !lowerMessage.contains("class") &&
-        !lowerMessage.contains("java.") &&
-        !lowerMessage.contains("org.springframework") &&
-        message.length() < 200; // User-friendly messages should be concise
+    userCredential.setTenantId(request.getTenantId());
+    return userCredential;
   }
 
-  /**
-   * Extracts user-friendly error message from users service error response.
-   * 
-   * @param responseBody the error response body
-   * @return user-friendly error message or null if extraction fails
-   */
-  private String extractUserFriendlyErrorMessage(String responseBody) {
+  private UUID extractUserIdFromResponse(ApiResponse<UserResponseDTO> response) {
     try {
-      // Parse the JSON response to extract the message field
-      com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-      com.fasterxml.jackson.databind.JsonNode jsonNode = mapper.readTree(responseBody);
+      if (response != null && response.getData() != null) {
+        UserResponseDTO userData = response.getData();
 
-      // Simply return the message field if it exists - users service should provide
-      // user-friendly messages
-      if (jsonNode.has("message")) {
-        return jsonNode.get("message").asText();
+        // Extract user ID from the DTO
+        if (userData.getId() != null) {
+          return userData.getId();
+        }
+
+        log.warn("User ID is null in response, generating new UUID");
+        return UUID.randomUUID();
       }
+
+      log.warn("Response or response data is null, generating new UUID");
+      return UUID.randomUUID();
 
     } catch (Exception e) {
-      log.debug("Failed to parse error response: {}", e.getMessage());
-    }
-
-    return null;
-  }
-
-  /**
-   * Internal DTO for wrapped API response from users service.
-   */
-  private static class ApiResponseWrapper {
-    private boolean success;
-    private UserData data;
-    private String message;
-    private String error;
-
-    // Getters and setters
-    public boolean isSuccess() {
-      return success;
-    }
-
-    public void setSuccess(boolean success) {
-      this.success = success;
-    }
-
-    public UserData getData() {
-      return data;
-    }
-
-    public void setData(UserData data) {
-      this.data = data;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-
-    public void setMessage(String message) {
-      this.message = message;
-    }
-
-    public String getError() {
-      return error;
-    }
-
-    public void setError(String error) {
-      this.error = error;
+      log.error("Error extracting user ID from response: {}", e.getMessage());
+      return UUID.randomUUID();
     }
   }
 
-  /**
-   * Internal DTO for user data from users service.
-   */
-  private static class UserData {
-    private UUID id;
-    private String username;
-    private String email;
-
-    // Getters and setters
-    public UUID getId() {
-      return id;
+  private String extractErrorMessageFromFeignException(FeignException e) {
+    try {
+      // Try to parse the error response as JSON
+      String responseBody = e.contentUTF8();
+      if (responseBody != null && !responseBody.trim().isEmpty()) {
+        // Simple JSON parsing to extract message field
+        if (responseBody.contains("\"message\":")) {
+          int messageStart = responseBody.indexOf("\"message\":") + 11;
+          int messageEnd = responseBody.indexOf("\"", messageStart);
+          if (messageEnd > messageStart) {
+            String message = responseBody.substring(messageStart, messageEnd);
+            // Unescape JSON string
+            return message.replace("\\\"", "\"").replace("\\\\", "\\");
+          }
+        }
+      }
+    } catch (Exception parseException) {
+      log.debug("Could not parse error response: {}", parseException.getMessage());
     }
 
-    public void setId(UUID id) {
-      this.id = id;
-    }
-
-    public String getUsername() {
-      return username;
-    }
-
-    public void setUsername(String username) {
-      this.username = username;
-    }
-
-    public String getEmail() {
-      return email;
-    }
-
-    public void setEmail(String email) {
-      this.email = email;
+    // Fallback error messages based on status code
+    switch (e.status()) {
+      case 409:
+        return "A user with this information already exists. Please use different username or email address.";
+      case 400:
+        return "Invalid request data. Please check your input and try again.";
+      case 500:
+        return "Internal server error. Please try again later.";
+      default:
+        return "An error occurred while processing your request. Please try again.";
     }
   }
 }

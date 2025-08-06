@@ -56,11 +56,19 @@ public class AuthController {
               .build());
 
     } catch (IllegalArgumentException e) {
-      log.error("Registration validation failed for username: {}", request.getUsername(), e);
+      log.warn("Registration validation failed for username '{}': {}", request.getUsername(), e.getMessage());
       return ResponseEntity.badRequest()
           .body(ApiResponse.<RegistrationResponse>builder()
               .success(false)
               .message("Registration validation failed: " + e.getMessage())
+              .build());
+
+    } catch (RuntimeException e) {
+      log.warn("Registration failed for username '{}': {}", request.getUsername(), e.getMessage());
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(ApiResponse.<RegistrationResponse>builder()
+              .success(false)
+              .message(e.getMessage())
               .build());
 
     } catch (Exception e) {
@@ -68,7 +76,7 @@ public class AuthController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.<RegistrationResponse>builder()
               .success(false)
-              .message("Registration failed: " + e.getMessage())
+              .message("Registration failed. Please try again later.")
               .build());
     }
   }
