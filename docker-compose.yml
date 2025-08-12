@@ -1,4 +1,24 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm-postgres
+    environment:
+      POSTGRES_DB: db_crm
+      POSTGRES_USER: user_crm
+      POSTGRES_PASSWORD: password_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_crm -d db_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Service Registry (Eureka)
   service-registry:
     build:
@@ -12,12 +32,81 @@ services:
       - EUREKA_URL=http://service-registry:8761/eureka/
     networks:
       - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: crm-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/db_crm
+      - DATABASE_USERNAME=user_crm
+      - DATABASE_PASSWORD=password_crm
+      - DATABASE_DRIVER=org.postgresql.Driver
+      - JPA_DDL_AUTO=create-drop
+      - EUREKA_URL=http://service-registry:8761/eureka/
+      - USERS_SERVICE_URL=http://users-service:8082
+      - APP_ENVIRONMENT=docker
+      - LOG_LEVEL_APP=DEBUG
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+  # Users Service
+  users-service:
+    build:
+      context: ./users-service
+      dockerfile: Dockerfile
+    container_name: crm-users-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/db_crm
+      - DATABASE_USERNAME=user_crm
+      - DATABASE_PASSWORD=password_crm
+      - DATABASE_DRIVER=org.postgresql.Driver
+      - JPA_DDL_AUTO=create-drop
+      - EUREKA_URL=http://service-registry:8761/eureka/
+      - APP_ENVIRONMENT=docker
+      - LOG_LEVEL_APP=DEBUG
+      - SWAGGER_ENABLED=true
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
 
   # API Gateway
   api-gateway:
@@ -37,12 +126,20 @@ services:
     depends_on:
       service-registry:
         condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 45s
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
   crm-network:
