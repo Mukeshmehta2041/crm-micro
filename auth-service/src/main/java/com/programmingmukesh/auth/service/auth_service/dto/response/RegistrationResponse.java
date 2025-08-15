@@ -120,6 +120,21 @@ public class RegistrationResponse {
   private String metadata;
 
   /**
+   * Unique identifier for the authentication credentials.
+   */
+  private UUID id;
+
+  /**
+   * Email verification token (if email verification is required).
+   */
+  private String emailVerificationToken;
+
+  /**
+   * Tenant ID associated with this user.
+   */
+  private UUID tenantId;
+
+  /**
    * Checks if the registration was successful.
    * 
    * @return true if the registration was successful, false otherwise

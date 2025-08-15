@@ -42,12 +42,8 @@ import java.util.UUID;
  * @since 2024
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-@ToString
-@EqualsAndHashCode
+@AllArgsConstructor
 @MappedSuperclass
 public abstract class BaseEntity {
 
@@ -58,7 +54,6 @@ public abstract class BaseEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id", nullable = false, updatable = false, length = 36)
-  @NotNull(message = "ID cannot be null")
   private UUID id;
 
   /**
@@ -74,7 +69,6 @@ public abstract class BaseEntity {
    * Automatically set by JPA lifecycle callbacks.
    */
   @Column(name = "created_at", nullable = false, updatable = false)
-  @NotNull(message = "Created at timestamp cannot be null")
   private LocalDateTime createdAt;
 
   /**
@@ -82,7 +76,6 @@ public abstract class BaseEntity {
    * Automatically updated by JPA lifecycle callbacks.
    */
   @Column(name = "updated_at", nullable = false)
-  @NotNull(message = "Updated at timestamp cannot be null")
   private LocalDateTime updatedAt;
 
   /**

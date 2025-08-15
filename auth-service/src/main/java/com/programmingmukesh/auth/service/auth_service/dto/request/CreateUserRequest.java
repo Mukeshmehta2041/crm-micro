@@ -90,6 +90,53 @@ public class CreateUserRequest {
   private UUID tenantId;
 
   /**
+   * User's phone number.
+   */
+  @Pattern(regexp = "^[+]?[0-9\\s()-]+$", message = "Phone number can only contain digits, spaces, parentheses, hyphens, and plus sign")
+  @Size(max = 20, message = "Phone number cannot exceed 20 characters")
+  private String phoneNumber;
+
+  /**
+   * User's job title or position.
+   */
+  @Size(max = 150, message = "Job title cannot exceed 150 characters")
+  private String jobTitle;
+
+  /**
+   * User's department.
+   */
+  @Size(max = 100, message = "Department cannot exceed 100 characters")
+  private String department;
+
+  /**
+   * User's company or organization.
+   */
+  @Size(max = 100, message = "Company cannot exceed 100 characters")
+  private String company;
+
+  /**
+   * User's timezone.
+   */
+  @Size(max = 50, message = "Timezone cannot exceed 50 characters")
+  private String timezone = "UTC";
+
+  /**
+   * User's preferred language.
+   */
+  @Size(max = 10, message = "Language cannot exceed 10 characters")
+  private String language = "en";
+
+  /**
+   * User's GDPR consent status.
+   */
+  private Boolean gdprConsentGiven = false;
+
+  /**
+   * User's marketing consent status.
+   */
+  private Boolean marketingConsentGiven = false;
+
+  /**
    * Validates that the request contains minimum required information.
    * 
    * @return true if the request has minimum required information

@@ -54,13 +54,11 @@ import jakarta.validation.constraints.Email;
  * @since 2024
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-@ToString(callSuper = true)
-@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
 @Builder
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 @Table(name = "user_credentials", indexes = {
     @Index(name = "idx_user_credentials_username", columnList = "username", unique = true),
     @Index(name = "idx_user_credentials_email", columnList = "email", unique = true),

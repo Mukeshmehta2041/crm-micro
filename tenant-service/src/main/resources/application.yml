@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: tenant-service
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tenant_service_db
+    username: tenant_user
+    password: tenant_password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+    schemas: public
+    table: flyway_schema_history
+
+# Server Configuration
+server:
+  port: 8082
+  servlet:
+    context-path: /tenant
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    com.programmingmukesh.tenant: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/tenant-service.log
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  show-actuator: true
+
+# Custom Application Properties
+app:
+  tenant:
+    default-trial-days: 30
+    max-users-basic: 10
+    max-users-standard: 100
+    max-users-premium: 1000
+    max-users-enterprise: 10000
+    max-storage-basic: 100 # GB
+    max-storage-standard: 500 # GB
+    max-storage-premium: 2000 # GB
+    max-storage-enterprise: 10000 # GB
+  
+  subscription:
+    grace-period-days: 7
+    reminder-days-before-expiry: [30, 7, 1]

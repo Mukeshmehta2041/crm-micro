@@ -28,7 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<spring-cloud.version>2024.0.0</spring-cloud.version>
+		<spring-cloud.version>2024.0.1</spring-cloud.version>
+		<flyway.version>10.10.0</flyway.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -73,25 +74,21 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Flyway Database Migration -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
 		<!-- OpenAPI Documentation -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.3.0</version>
-		</dependency>
-
-		<!-- Additional OpenAPI Security Support -->
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
-			<version>2.3.0</version>
-		</dependency>
-
-		<!-- Bean Validation API Documentation -->
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-common</artifactId>
-			<version>2.3.0</version>
+			<version>2.4.0</version>
 		</dependency>
 
 		<!-- Eureka Client -->
@@ -137,6 +134,24 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			
+			<!-- Flyway Maven Plugin -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway.version}</version>
+				<configuration>
+					<url>jdbc:postgresql://localhost:5432/users_service_db</url>
+					<user>users_user</user>
+					<password>users_password</password>
+					<schemas>
+						<schema>public</schema>
+					</schemas>
+					<locations>
+						<location>classpath:db/migration</location>
+					</locations>
 				</configuration>
 			</plugin>
 		</plugins>

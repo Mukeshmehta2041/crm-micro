@@ -28,7 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<spring-cloud.version>2024.0.0</spring-cloud.version>
+		<spring-cloud.version>2024.0.1</spring-cloud.version>
+		<flyway.version>10.10.0</flyway.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -91,6 +92,35 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
+		<!-- Flyway Database Migration -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- JWT Token Support -->
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.3</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.3</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.3</version>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- OpenAPI/Swagger Documentation -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
@@ -135,6 +165,24 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			
+			<!-- Flyway Maven Plugin -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway.version}</version>
+				<configuration>
+					<url>jdbc:postgresql://localhost:5432/auth_service_db</url>
+					<user>auth_user</user>
+					<password>auth_password</password>
+					<schemas>
+						<schema>public</schema>
+					</schemas>
+					<locations>
+						<location>classpath:db/migration</location>
+					</locations>
 				</configuration>
 			</plugin>
 		</plugins>

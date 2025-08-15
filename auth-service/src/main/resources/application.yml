@@ -1,150 +1,120 @@
-server:
-  port: ${SERVER_PORT:8081}
-
 spring:
   application:
     name: auth-service
   
   # Database Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://ep-jolly-breeze-a1amwp6u-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
-    username: ${DATABASE_USERNAME:neondb_owner}
-    password: ${DATABASE_PASSWORD:npg_wN7vFE4VHSMY}
-    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    url: jdbc:postgresql://localhost:5432/auth_service_db
+    username: auth_user
+    password: auth_password
+    driver-class-name: org.postgresql.Driver
     hikari:
-      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
-      minimum-idle: ${DB_MIN_IDLE:5}
-      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
-      max-lifetime: ${DB_MAX_LIFETIME:1800000}
-      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
-
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+  
   # JPA Configuration
   jpa:
-    database-platform: ${JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
-    show-sql: ${JPA_SHOW_SQL:false}
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
-        format_sql: ${JPA_FORMAT_SQL:false}
-        use_sql_comments: ${JPA_SQL_COMMENTS:false}
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
         jdbc:
-          batch_size: ${JPA_BATCH_SIZE:20}
+          batch_size: 25
         order_inserts: true
         order_updates: true
+    open-in-view: false
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+    schemas: public
+    table: flyway_schema_history
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/auth/realms/crm
 
-  # Jackson Configuration
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    time-zone: UTC
-
-# Management and Actuator
-management:
-  endpoints:
-    web:
-      exposure:
-        include: ${MANAGEMENT_ENDPOINTS:health,info,metrics,prometheus}
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: ${MANAGEMENT_HEALTH_DETAILS:always}
-      show-components: always
-    info:
-      enabled: true
-    metrics:
-      enabled: true
-    prometheus:
-      enabled: true
-  health:
-    db:
-      enabled: true
-    diskspace:
-      enabled: true
-    ping:
-      enabled: true
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    tags:
-      application: ${spring.application.name}
-      environment: ${APP_ENVIRONMENT:default}
-
-# Logging Configuration
-logging:
-  level:
-    com.programmingmukesh.auth: ${LOG_LEVEL_APP:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
-    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
-    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:WARN}
-    com.zaxxer.hikari: ${LOG_LEVEL_HIKARI:INFO}
-    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
-
-# Custom Application Properties
-app:
-  name: Auth Service
-  version: 1.0.0
-  description: Authentication and Authorization Service for CRM System
-  environment: ${APP_ENVIRONMENT:default}
+# Server Configuration
+server:
+  port: 8081
+  servlet:
+    context-path: /auth
 
 # Eureka Configuration
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
+      defaultZone: http://localhost:8761/eureka/
     fetch-registry: true
+    register-with-eureka: true
   instance:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 30
     lease-expiration-duration-in-seconds: 90
 
-# Service URLs
-users:
-  service:
-    url: ${USERS_SERVICE_URL:http://localhost:8082}
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
-# Feign Client Configuration
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 5000
-        readTimeout: 10000
-        loggerLevel: none
-  circuitbreaker:
-    enabled: true
+# Logging Configuration
+logging:
+  level:
+    com.programmingmukesh.auth: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/auth-service.log
 
-# OpenAPI Documentation Configuration
+# OpenAPI Configuration
 springdoc:
   api-docs:
     path: /api-docs
-    enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
     path: /swagger-ui.html
-    enabled: ${SWAGGER_ENABLED:true}
-    tags-sorter: alpha
-    operations-sorter: alpha
-    doc-expansion: none
-    disable-swagger-default-url: true
-    display-request-duration: true
-    display-operation-id: true
-    show-extensions: true
-    show-common-extensions: true
-    try-it-out-enabled: true
-    filter: true
-    syntax-highlight:
-      activated: true
-      theme: agate
-  packages-to-scan: com.programmingmukesh.auth.service.auth_service.controller
-  paths-to-match: /api/**
+    enabled: true
   show-actuator: true
-  group-configs:
-    - group: 'auth-api'
-      display-name: 'Authentication API'
-      paths-to-match: '/api/v1/auth/**'
-    - group: 'system-api'
-      display-name: 'System API'
-      paths-to-match: '/actuator/**'
+
+# Custom Application Properties
+app:
+  jwt:
+    secret: ${JWT_SECRET:mySecretKey}
+    expiration: 86400000 # 24 hours
+    refresh-expiration: 604800000 # 7 days
+  
+  security:
+    max-login-attempts: 5
+    account-lockout-duration: 1800 # 30 minutes in seconds
+    password-reset-expiration: 3600 # 1 hour in seconds
+  
+  mfa:
+    issuer: CRM Auth Service
+    digits: 6
+    period: 30

@@ -46,12 +46,10 @@ import jakarta.validation.constraints.*;
  * @since 2024
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-@ToString(callSuper = true)
+@AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 @Table(name = "users", indexes = {
     @Index(name = "idx_users_email", columnList = "email", unique = true),
     @Index(name = "idx_users_username", columnList = "username", unique = true),
