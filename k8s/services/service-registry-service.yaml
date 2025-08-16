@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-registry-service
+  namespace: crm-microservices
+  labels:
+    app: service-registry
+spec:
+  selector:
+    app: service-registry
+  ports:
+    - protocol: TCP
+      port: 8761
+      targetPort: 8761
+  type: ClusterIP

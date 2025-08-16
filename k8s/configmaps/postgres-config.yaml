@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: crm-microservices
+data:
+  POSTGRES_DB: crm_auth
+  POSTGRES_USER: crm_user
+  POSTGRES_PASSWORD: crm_password
+  POSTGRES_HOST: postgres-service
+  POSTGRES_PORT: "5432"

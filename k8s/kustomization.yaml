@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: crm-microservices
+
+resources:
+  # 1. Namespace
+  - namespace.yaml
+  
+  # 2. Storage
+  - storage/
+  
+  # 3. Configuration
+  - configmaps/
+  - secrets/
+  
+  # 4. Infrastructure services
+  - services/postgres-service.yaml
+  - services/redis-service.yaml
+  - deployments/postgres-deployment.yaml
+  - deployments/redis-deployment.yaml
+  
+  # 5. Service registry
+  - services/service-registry-service.yaml
+  - deployments/service-registry-deployment.yaml
+  
+  # 6. Core services
+  - services/
+  - deployments/
+  
+  # 7. API Gateway and Ingress
+  - services/api-gateway-service.yaml
+  - deployments/api-gateway-deployment.yaml
+  - ingress/
+  
+  # 8. Scaling
+  - hpa/
+
+commonLabels:
+  app.kubernetes.io/name: crm-microservices
+  app.kubernetes.io/version: v1.0.0
+  app.kubernetes.io/part-of: crm-system

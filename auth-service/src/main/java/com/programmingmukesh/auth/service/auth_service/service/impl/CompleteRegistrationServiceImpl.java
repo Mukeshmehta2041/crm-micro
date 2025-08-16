@@ -13,11 +13,8 @@ import com.programmingmukesh.auth.service.auth_service.client.TenantServiceClien
 import com.programmingmukesh.auth.service.auth_service.client.UsersServiceClient;
 import com.programmingmukesh.auth.service.auth_service.dto.ApiResponse;
 import com.programmingmukesh.auth.service.auth_service.dto.request.CompleteRegistrationRequest;
-import com.programmingmukesh.auth.service.auth_service.dto.request.CreateTenantRequest;
-import com.programmingmukesh.auth.service.auth_service.dto.request.CreateUserRequest;
 import com.programmingmukesh.auth.service.auth_service.dto.response.CompleteRegistrationResponse;
 import com.programmingmukesh.auth.service.auth_service.dto.response.RegistrationResponse;
-import com.programmingmukesh.auth.service.auth_service.dto.response.TenantResponse;
 import com.programmingmukesh.auth.service.auth_service.dto.UserResponseDTO;
 import com.programmingmukesh.auth.service.auth_service.service.AuthService;
 import com.programmingmukesh.auth.service.auth_service.service.CompleteRegistrationService;
@@ -61,7 +58,7 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
   @Override
   public CompleteRegistrationResponse performCompleteRegistration(CompleteRegistrationRequest request) {
     // Generate a unique request ID for tracking
-    String requestId = "req-" + System.currentTimeMillis() + "-" + Thread.currentThread().getId();
+    String requestId = "req-" + System.currentTimeMillis() + "-" + Thread.currentThread().threadId();
 
     // Create a unique key for deduplication
     String dedupKey = request.getEmail() + "|" + request.getCompanyName();
@@ -84,26 +81,24 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
       }
 
       // Step 2: Create Tenant
-      log.info("[{}] Creating tenant for company: {}", requestId, request.getCompanyName());
-      TenantResponse tenant = createTenant(request);
-      log.info("[{}] Tenant created successfully with ID: {} and subdomain: {}",
-          requestId, tenant.getId(), tenant.getSubdomain());
+      // log.info("[{}] Creating tenant for company: {}", requestId,
+      // request.getCompanyName());
+      // TenantResponse tenant = createTenant(request);
+      // log.info("[{}] Tenant created successfully with ID: {} and subdomain: {}",
+      // requestId, tenant.getId(), tenant.getSubdomain());
 
-      // Step 3: Create User
-      log.info("[{}] Creating user for email: {}", requestId, request.getEmail());
-      UserResponseDTO user = createUser(request, tenant.getId());
-      log.info("[{}] User created successfully with ID: {}", requestId, user.getId());
+      UUID tenantId = UUID.randomUUID();
 
-      // Step 4: Create Auth Credentials
-      log.info("[{}] Creating auth credentials for user: {}", requestId, user.getId());
-      RegistrationResponse auth = createAuthCredentials(request, user.getId(), tenant.getId());
-      log.info("[{}] Auth credentials created successfully with ID: {}", requestId, auth.getId());
+      // Step 3: Create Auth Credentials (this will also create the user)
+      log.info("[{}] Creating auth credentials and user for email: {}", requestId, request.getEmail());
+      RegistrationResponse auth = createAuthCredentials(request, tenantId);
+      log.info("[{}] Auth credentials and user created successfully with ID: {}", requestId, auth.getId());
 
-      // Step 5: Build complete response
-      CompleteRegistrationResponse response = CompleteRegistrationResponse.success(user, tenant, auth);
+      // Step 4: Build complete response
+      CompleteRegistrationResponse response = CompleteRegistrationResponse.success(null, null, auth);
 
       log.info("[{}] Complete registration successful for user: {} in tenant: {}",
-          requestId, user.getEmail(), tenant.getSubdomain());
+          requestId, request.getEmail(), tenantId);
 
       return response;
 
@@ -154,7 +149,8 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
     try {
       // Check with Users Service
       ResponseEntity<ApiResponse<UserResponseDTO>> userResponse = usersServiceClient.getUserByUsername(username);
-      if (userResponse.getBody() != null && userResponse.getBody().isSuccess()) {
+      ApiResponse<UserResponseDTO> responseBody = userResponse.getBody();
+      if (responseBody != null && responseBody.isSuccess()) {
         return false; // User exists, username not available
       }
     } catch (Exception e) {
@@ -169,7 +165,8 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
     try {
       // Check with Users Service
       ResponseEntity<ApiResponse<UserResponseDTO>> userResponse = usersServiceClient.getUserByEmail(email);
-      if (userResponse.getBody() != null && userResponse.getBody().isSuccess()) {
+      ApiResponse<UserResponseDTO> responseBody = userResponse.getBody();
+      if (responseBody != null && responseBody.isSuccess()) {
         return false; // User exists, email not available
       }
     } catch (Exception e) {
@@ -209,22 +206,6 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
       log.info(
           "Allowing registration to proceed despite availability check failure - will handle conflicts during tenant creation");
       return true;
-    }
-  }
-
-  /**
-   * Checks if the tenant service is available.
-   * 
-   * @return true if the service is available, false otherwise
-   */
-  private boolean isTenantServiceAvailable() {
-    try {
-      // Try to call a simple endpoint to check if the service is up
-      ApiResponse<Boolean> response = tenantServiceClient.checkSubdomainAvailability("test-availability");
-      return response != null;
-    } catch (Exception e) {
-      log.warn("Tenant service is not available: {}", e.getMessage());
-      return false;
     }
   }
 
@@ -289,119 +270,6 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
     int count = ongoingRegistrations.size();
     ongoingRegistrations.clear();
     log.warn("Cleared {} ongoing registrations", count);
-  }
-
-  /**
-   * Creates a tenant for the registration.
-   * 
-   * @param request the registration request
-   * @return the created tenant response
-   */
-  private TenantResponse createTenant(CompleteRegistrationRequest request) {
-    try {
-      // Check if tenant service is available
-      if (!isTenantServiceAvailable()) {
-        log.error("Tenant service is not available, cannot create tenant for company: {}", request.getCompanyName());
-        throw new RuntimeException("Tenant service is not available. Please try again later.");
-      }
-
-      // Generate a unique subdomain that's available
-      String uniqueSubdomain = generateUniqueSubdomain(request.getCompanyName());
-
-      // Create tenant request with the unique subdomain
-      CreateTenantRequest tenantRequest = request.toCreateTenantRequest();
-      tenantRequest.setSubdomain(uniqueSubdomain);
-
-      log.info("Creating tenant with unique subdomain: {} for company: {}",
-          uniqueSubdomain, request.getCompanyName());
-
-      ApiResponse<TenantResponse> response = tenantServiceClient.createTenant(tenantRequest);
-
-      if (!response.isSuccess() || response.getData() == null) {
-        String errorMessage = response.getMessage();
-        if (errorMessage == null || errorMessage.isEmpty()) {
-          errorMessage = "Unknown error occurred while creating tenant";
-        }
-
-        // Check if this is a fallback response (service unavailable)
-        if (errorMessage.contains("Tenant Service is unavailable")) {
-          throw new RuntimeException(
-              "Tenant service is not available at the moment. Please try again in a few minutes.");
-        }
-
-        throw new RuntimeException("Failed to create tenant: " + errorMessage);
-      }
-
-      log.info("Tenant created successfully with subdomain: {}", uniqueSubdomain);
-      return response.getData();
-    } catch (feign.FeignException e) {
-      log.error("Feign error creating tenant for company: {} with subdomain: {}",
-          request.getCompanyName(), request.toCreateTenantRequest().getSubdomain(), e);
-
-      if (e.status() == 503) {
-        throw new RuntimeException("Tenant service is not available at the moment. Please try again in a few minutes.");
-      } else if (e.status() == 409) {
-        throw new RuntimeException("A tenant with this company name already exists. Please choose a different name.");
-      } else {
-        throw new RuntimeException("Failed to create tenant: " + e.getMessage());
-      }
-    } catch (Exception e) {
-      log.error("Error creating tenant for company: {} with subdomain: {}",
-          request.getCompanyName(), request.toCreateTenantRequest().getSubdomain(), e);
-
-      // Provide more specific error messages based on the exception type
-      if (e.getMessage() != null && e.getMessage().contains("Tenant Service is unavailable")) {
-        throw new RuntimeException("Tenant service is not available at the moment. Please try again in a few minutes.");
-      } else if (e.getMessage() != null && e.getMessage().contains("Load balancer does not contain an instance")) {
-        throw new RuntimeException("Tenant service is not available at the moment. Please try again in a few minutes.");
-      } else {
-        throw new RuntimeException("Failed to create tenant: " + e.getMessage());
-      }
-    }
-  }
-
-  /**
-   * Generates a unique subdomain for the company name.
-   * If the first subdomain is taken, it will try variations until it finds an
-   * available one.
-   * 
-   * @param companyName the company name
-   * @return a unique available subdomain
-   */
-  private String generateUniqueSubdomain(String companyName) {
-    // Try the base subdomain first
-    String baseSubdomain = generateBaseSubdomain(companyName);
-    log.info("Generated base subdomain '{}' for company '{}'", baseSubdomain, companyName);
-
-    if (isSubdomainAvailableWithRetry(baseSubdomain)) {
-      log.info("Base subdomain '{}' is available, using it", baseSubdomain);
-      return baseSubdomain;
-    }
-
-    log.info("Base subdomain '{}' is taken, generating variations", baseSubdomain);
-
-    // If base subdomain is taken, try variations
-    int attempt = 1;
-    String subdomain;
-
-    do {
-      subdomain = baseSubdomain + "-" + attempt;
-      log.debug("Trying subdomain variation '{}' (attempt {})", subdomain, attempt);
-      attempt++;
-
-      // Prevent infinite loop
-      if (attempt > 100) {
-        // Generate a completely random subdomain as fallback
-        subdomain = "company-" + System.currentTimeMillis() % 10000;
-        log.warn("Reached maximum attempts, using fallback subdomain: {}", subdomain);
-        break;
-      }
-    } while (!isSubdomainAvailableWithRetry(subdomain));
-
-    log.info("Generated unique subdomain '{}' for company '{}' after {} attempts",
-        subdomain, companyName, attempt - 1);
-
-    return subdomain;
   }
 
   /**
@@ -473,34 +341,15 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
   }
 
   /**
-   * Creates a user for the registration.
-   * 
-   * @param request  the registration request
-   * @param tenantId the tenant ID
-   * @return the created user response
-   */
-  private UserResponseDTO createUser(CompleteRegistrationRequest request, UUID tenantId) {
-    CreateUserRequest userRequest = request.toCreateUserRequest(tenantId);
-
-    ResponseEntity<ApiResponse<UserResponseDTO>> response = usersServiceClient.createUser(userRequest);
-
-    if (!response.getBody().isSuccess() || response.getBody().getData() == null) {
-      throw new RuntimeException("Failed to create user: " + response.getBody().getMessage());
-    }
-
-    return response.getBody().getData();
-  }
-
-  /**
    * Creates auth credentials for the registration.
+   * This method will create both the user (via AuthService) and the auth
+   * credentials.
    * 
    * @param request  the registration request
-   * @param userId   the user ID
    * @param tenantId the tenant ID
    * @return the created auth response
    */
-  private RegistrationResponse createAuthCredentials(CompleteRegistrationRequest request,
-      UUID userId, UUID tenantId) {
+  private RegistrationResponse createAuthCredentials(CompleteRegistrationRequest request, UUID tenantId) {
     com.programmingmukesh.auth.service.auth_service.dto.request.CreateUserRequest authRequest = com.programmingmukesh.auth.service.auth_service.dto.request.CreateUserRequest
         .builder()
         .username(request.getUsername())
@@ -520,17 +369,13 @@ public class CompleteRegistrationServiceImpl implements CompleteRegistrationServ
         .marketingConsentGiven(request.getMarketingConsent())
         .build();
 
-    // Set the user ID from the created user
-    authRequest.setTenantId(tenantId);
-
     RegistrationResponse response = authService.register(authRequest);
 
     if (!response.isSuccessful()) {
       throw new RuntimeException("Failed to create auth credentials: " + response.getMessage());
     }
 
-    // Set additional fields
-    response.setUserId(userId);
+    // Set tenant ID in response
     response.setTenantId(tenantId);
 
     return response;
