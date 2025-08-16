@@ -29,6 +29,12 @@ spring:
           batch_size: 25
         order_inserts: true
         order_updates: true
+        # Fix for LazyInitializationException
+        enable_lazy_load_no_trans: false
+        # Ensure proper session management
+        session:
+          events:
+            log: false
     open-in-view: false
   
   # Flyway Configuration
@@ -44,6 +50,13 @@ spring:
 # Server Configuration
 server:
   port: 8083
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+    whitelabel:
+      enabled: false
 
 # Eureka Configuration
 eureka:
@@ -75,13 +88,34 @@ management:
 logging:
   level:
     com.programmingmukesh.users: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/users-service.log
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    config-url: /api-docs/swagger-config
+    urls:
+      - url: /api-docs
+        name: Users Service API
+    disable-swagger-default-url: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    display-request-duration: true
+    doc-expansion: none
+    deep-linking: true
+  packages-to-scan: com.programmingmukesh.users.service.users_service.controller
+  paths-to-match: /api/**
 
 # Custom Application Properties
 app:

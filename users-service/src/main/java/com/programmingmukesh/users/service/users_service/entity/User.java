@@ -482,7 +482,7 @@ public class User extends BaseEntity {
   /**
    * User's working days.
    */
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = FetchType.EAGER)
   @Enumerated(EnumType.STRING)
   @CollectionTable(name = "user_working_days", joinColumns = @JoinColumn(name = "user_id"))
   @Column(name = "day_of_week")
@@ -491,7 +491,7 @@ public class User extends BaseEntity {
   /**
    * User's skills.
    */
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "user_skills", joinColumns = @JoinColumn(name = "user_id"))
   @Column(name = "skill", length = 100)
   private Set<String> skills;
@@ -499,7 +499,7 @@ public class User extends BaseEntity {
   /**
    * User's certifications.
    */
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "user_certifications", joinColumns = @JoinColumn(name = "user_id"))
   @Column(name = "certification", length = 200)
   private Set<String> certifications;
@@ -507,7 +507,7 @@ public class User extends BaseEntity {
   /**
    * User's spoken languages.
    */
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "user_languages", joinColumns = @JoinColumn(name = "user_id"))
   @Column(name = "language_code", length = 10)
   private Set<String> spokenLanguages;
