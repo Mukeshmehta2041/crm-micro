@@ -47,6 +47,35 @@ spring:
     schemas: public
     table: flyway_schema_history
 
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      write-null-map-values: false
+      write-empty-json-arrays: false
+      write-single-elem-arrays-unwrapped: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+    time-zone: UTC
+    # Explicitly disable type information in JSON
+    default-typing: none
+
 # Server Configuration
 server:
   port: 8083
@@ -75,14 +104,22 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,caches,circuitbreakers
   endpoint:
     health:
       show-details: when-authorized
+      show-components: when-authorized
+    caches:
+      enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    redis:
+      enabled: true
 
 # Logging Configuration
 logging:
@@ -137,3 +174,51 @@ app:
     email-enabled: true
     sms-enabled: false
     push-enabled: true
+
+  # Cache Configuration
+  cache:
+    default-ttl: 3600  # 1 hour
+    user-ttl: 1800     # 30 minutes
+    search-ttl: 300    # 5 minutes
+    stats-ttl: 900     # 15 minutes
+
+  # Error Handling Configuration
+  error:
+    include-trace: false
+    include-cause: false
+    max-stack-trace-length: 1000
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      database:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        permitted-number-of-calls-in-half-open-state: 3
+      cache:
+        register-health-indicator: true
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 10s
+
+  retry:
+    instances:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.dao.DataAccessResourceFailureException
+          - org.springframework.dao.TransientDataAccessException
+          - java.sql.SQLException
+
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 5s

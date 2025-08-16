@@ -7,12 +7,20 @@ import java.util.UUID;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import com.programmingmukesh.users.service.users_service.exception.CacheException;
+import com.programmingmukesh.users.service.users_service.exception.ServiceUnavailableException;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 
 import com.programmingmukesh.users.service.users_service.dto.request.CreateUserRequest;
 import com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest;
@@ -67,92 +75,160 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
+  @CircuitBreaker(name = "database", fallbackMethod = "createUserFallback")
+  @Retry(name = "default")
+  @CacheEvict(value = "users", allEntries = true)
   public UserResponse createUser(CreateUserRequest request) {
     log.info("Creating user with username: {}", request.getUsername());
 
     try {
-      // Validate request
       validateCreateUserRequest(request);
-
-      // Check for existing user
       checkUserExists(request.getUsername(), request.getEmail());
 
-      // Create user entity
       User user = userMapper.toEntity(request);
 
-      // Set tenant ID if not provided (multi-tenancy support)
       if (user.getTenantId() == null) {
-        user.setTenantId(UUID.randomUUID()); // TODO: Get from security context
+        user.setTenantId(UUID.randomUUID());
       }
 
-      // Save user
       User savedUser = userRepository.save(user);
-
       log.info("User created successfully with ID: {}", savedUser.getId());
 
-      // Publish user created event
       publishUserCreatedEvent(savedUser);
+      logUserActivity(savedUser.getId(), "USER_CREATED");
 
       return userMapper.toResponse(savedUser);
 
-    } catch (UserAlreadyExistsException | UserValidationException | UserNotFoundException e) {
-      // Re-throw custom exceptions so they can be handled by GlobalExceptionHandler
+    } catch (UserAlreadyExistsException | UserValidationException e) {
       throw e;
     } catch (DataIntegrityViolationException e) {
       log.error("Data integrity violation while creating user: {}", e.getMessage());
+      handleDataIntegrityViolation(e);
       throw new UserAlreadyExistsException("User with provided username or email already exists");
+    } catch (DataAccessException e) {
+      log.error("Database error while creating user: {}", e.getMessage(), e);
+      throw new ServiceUnavailableException("Database service is temporarily unavailable");
     } catch (Exception e) {
       log.error("Unexpected error creating user: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to create user", e);
+      throw new RuntimeException("Failed to create user due to unexpected error", e);
     }
   }
 
+  /**
+   * Fallback method for createUser when circuit breaker is open.
+   */
+  public UserResponse createUserFallback(CreateUserRequest request, Exception ex) {
+    log.error("Create user fallback triggered for username: {}, error: {}", 
+        request.getUsername(), ex.getMessage());
+    throw new ServiceUnavailableException("User creation service is temporarily unavailable. Please try again later.");
+  }
+
   @Override
   @Transactional(readOnly = true)
-  @Cacheable(value = "users", key = "#userId")
+  @Cacheable(value = "users", key = "#userId", unless = "#result == null")
+  @CircuitBreaker(name = "database", fallbackMethod = "getUserByIdFallback")
+  @Retry(name = "default")
   public UserResponse getUserById(UUID userId) {
     log.debug("Fetching user by ID: {}", userId);
     
-    validateUserId(userId);
+    try {
+      validateUserId(userId);
 
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+      User user = userRepository.findById(userId)
+          .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-    checkUserActive(user);
+      checkUserActive(user);
+      return userMapper.toResponse(user);
 
-    return userMapper.toResponse(user);
+    } catch (UserNotFoundException e) {
+      throw e;
+    } catch (DataAccessException e) {
+      log.error("Database error while fetching user by ID {}: {}", userId, e.getMessage());
+      throw new ServiceUnavailableException("Database service is temporarily unavailable");
+    } catch (Exception e) {
+      log.error("Unexpected error while fetching user by ID {}: {}", userId, e.getMessage(), e);
+      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
+    }
+  }
+
+  /**
+   * Fallback method for getUserById when circuit breaker is open.
+   */
+  public UserResponse getUserByIdFallback(UUID userId, Exception ex) {
+    log.error("Get user by ID fallback triggered for ID: {}, error: {}", userId, ex.getMessage());
+    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
   }
 
   @Override
   @Transactional(readOnly = true)
-  @Cacheable(value = "users", key = "'username:' + #username")
+  @Cacheable(value = "users", key = "'username:' + #username", unless = "#result == null")
+  @CircuitBreaker(name = "database", fallbackMethod = "getUserByUsernameFallback")
+  @Retry(name = "default")
   public UserResponse getUserByUsername(String username) {
     log.debug("Fetching user by username: {}", username);
     
-    validateUsername(username);
+    try {
+      validateUsername(username);
 
-    User user = userRepository.findByUsername(username)
-        .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
+      User user = userRepository.findByUsername(username)
+          .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
 
-    checkUserActive(user);
+      checkUserActive(user);
+      return userMapper.toResponse(user);
 
-    return userMapper.toResponse(user);
+    } catch (UserNotFoundException e) {
+      throw e;
+    } catch (DataAccessException e) {
+      log.error("Database error while fetching user by username {}: {}", username, e.getMessage());
+      throw new ServiceUnavailableException("Database service is temporarily unavailable");
+    } catch (Exception e) {
+      log.error("Unexpected error while fetching user by username {}: {}", username, e.getMessage(), e);
+      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
+    }
+  }
+
+  /**
+   * Fallback method for getUserByUsername when circuit breaker is open.
+   */
+  public UserResponse getUserByUsernameFallback(String username, Exception ex) {
+    log.error("Get user by username fallback triggered for username: {}, error: {}", username, ex.getMessage());
+    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
   }
 
   @Override
   @Transactional(readOnly = true)
-  @Cacheable(value = "users", key = "'email:' + #email")
+  @Cacheable(value = "users", key = "'email:' + #email", unless = "#result == null")
+  @CircuitBreaker(name = "database", fallbackMethod = "getUserByEmailFallback")
+  @Retry(name = "default")
   public UserResponse getUserByEmail(String email) {
     log.debug("Fetching user by email: {}", email);
     
-    validateEmail(email);
+    try {
+      validateEmail(email);
 
-    User user = userRepository.findByEmail(email)
-        .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+      User user = userRepository.findByEmail(email)
+          .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
 
-    checkUserActive(user);
+      checkUserActive(user);
+      return userMapper.toResponse(user);
 
-    return userMapper.toResponse(user);
+    } catch (UserNotFoundException e) {
+      throw e;
+    } catch (DataAccessException e) {
+      log.error("Database error while fetching user by email {}: {}", email, e.getMessage());
+      throw new ServiceUnavailableException("Database service is temporarily unavailable");
+    } catch (Exception e) {
+      log.error("Unexpected error while fetching user by email {}: {}", email, e.getMessage(), e);
+      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
+    }
+  }
+
+  /**
+   * Fallback method for getUserByEmail when circuit breaker is open.
+   */
+  public UserResponse getUserByEmailFallback(String email, Exception ex) {
+    log.error("Get user by email fallback triggered for email: {}, error: {}", email, ex.getMessage());
+    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
   }
 
   @Override
@@ -322,19 +398,42 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional(readOnly = true)
+  @Cacheable(value = "user-search", key = "#query + ':' + #department + ':' + #company + ':' + #status + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
+  @CircuitBreaker(name = "database", fallbackMethod = "searchUsersFallback")
+  @Retry(name = "default")
   public Page<UserResponse> searchUsers(String query, String department, String company, String status,
       Pageable pageable) {
     log.debug("Searching users with query: {}, department: {}, company: {}, status: {}",
         query, department, company, status);
 
-    if (pageable.getPageSize() > MAX_PAGE_SIZE) {
-      throw new UserValidationException("Page size cannot exceed " + MAX_PAGE_SIZE);
+    try {
+      if (pageable.getPageSize() > MAX_PAGE_SIZE) {
+        throw new UserValidationException("Page size cannot exceed " + MAX_PAGE_SIZE);
+      }
+
+      var specification = UserSpecification.createSearchSpecification(query, department, company, status);
+      Page<User> users = userRepository.findAll(specification, pageable);
+
+      return users.map(userMapper::toResponse);
+
+    } catch (UserValidationException e) {
+      throw e;
+    } catch (DataAccessException e) {
+      log.error("Database error while searching users: {}", e.getMessage());
+      throw new ServiceUnavailableException("Database service is temporarily unavailable");
+    } catch (Exception e) {
+      log.error("Unexpected error while searching users: {}", e.getMessage(), e);
+      throw new RuntimeException("Failed to search users due to unexpected error", e);
     }
+  }
 
-    var specification = UserSpecification.createSearchSpecification(query, department, company, status);
-    Page<User> users = userRepository.findAll(specification, pageable);
-
-    return users.map(userMapper::toResponse);
+  /**
+   * Fallback method for searchUsers when circuit breaker is open.
+   */
+  public Page<UserResponse> searchUsersFallback(String query, String department, String company, String status,
+      Pageable pageable, Exception ex) {
+    log.error("Search users fallback triggered, error: {}", ex.getMessage());
+    throw new ServiceUnavailableException("User search service is temporarily unavailable. Please try again later.");
   }
 
   // Private helper methods
@@ -644,6 +743,34 @@ public class UserServiceImpl implements UserService {
   private void auditLog(UUID userId, String action, String details) {
     log.info("Audit log - User ID: {}, Action: {}, Details: {}", userId, action, details);
     // TODO: Implement audit logging to database or external service
+  }
+
+  /**
+   * Handles data integrity violations and provides meaningful error messages.
+   */
+  private void handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    String message = ex.getMessage();
+    if (message != null) {
+      if (message.contains("username") || message.contains("idx_users_username")) {
+        log.warn("Username constraint violation: {}", message);
+      } else if (message.contains("email") || message.contains("idx_users_email")) {
+        log.warn("Email constraint violation: {}", message);
+      } else {
+        log.warn("Data integrity constraint violation: {}", message);
+      }
+    }
+  }
+
+  /**
+   * Safely handles cache operations with error recovery.
+   */
+  private void safeCacheOperation(Runnable cacheOperation, String operationName) {
+    try {
+      cacheOperation.run();
+    } catch (Exception e) {
+      log.warn("Cache operation '{}' failed: {}", operationName, e.getMessage());
+      // Don't throw exception, let the main operation continue
+    }
   }
 
 }
