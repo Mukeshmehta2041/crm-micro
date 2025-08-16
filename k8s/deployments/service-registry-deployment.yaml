@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: service-registry
-          image: crm-service-registry:latest
+          image: mukeshkr1234/service-registry:latest
           ports:
             - containerPort: 8761
           env:
