@@ -92,6 +92,12 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
+		<!-- Circuit Breaker for resilience -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+		</dependency>
+
 		<!-- Flyway Database Migration -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>

@@ -29,7 +29,7 @@ import com.programmingmukesh.auth.service.auth_service.dto.request.CreateUserReq
  * @version 1.0
  * @since 2024
  */
-@FeignClient(name = "users-service", url = "${users.service.url:http://localhost:8082}", fallback = UsersServiceClientFallback.class)
+@FeignClient(name = "users-service", fallback = UsersServiceClientFallback.class)
 public interface UsersServiceClient {
 
   /**

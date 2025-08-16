@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Standard error response structure for the User Service.
+ * Provides user-friendly error messages and helpful suggestions.
  * 
  * @author Programming Mukesh
  * @version 1.0
@@ -23,12 +24,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorResponse {
-    
-    private LocalDateTime timestamp;
-    private int status;
-    private String error;
-    private String message;
-    private String path;
-    private Map<String, String> fieldErrors;
-    private String traceId;
+
+  private LocalDateTime timestamp;
+  private int status;
+  private String error;
+  private String message;
+  private String path;
+  private Map<String, String> fieldErrors;
+  private String traceId;
+
+  // User-friendly fields
+  private String userMessage;
+  private String suggestion;
+  private String helpUrl;
+  private String errorCode;
 }

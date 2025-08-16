@@ -108,12 +108,14 @@ public class UserServiceImpl implements UserService {
 
   /**
    * Fallback method for createUser when circuit breaker is open.
-   * This should only be called for actual system failures, not business exceptions.
+   * This should only be called for actual system failures, not business
+   * exceptions.
    */
   public UserResponse createUserFallback(CreateUserRequest request, Exception ex) {
-    log.error("Create user fallback triggered for username: {}, error: {}", 
+    log.error("Create user fallback triggered for username: {}, error: {}",
         request.getUsername(), ex.getMessage());
-    throw new ServiceUnavailableException("User creation service is temporarily unavailable. Please try again later.");
+    throw new ServiceUnavailableException(
+        "We're currently experiencing high demand. Your user creation request couldn't be processed at this time. Please try again in a few minutes.");
   }
 
   @Override
@@ -123,11 +125,11 @@ public class UserServiceImpl implements UserService {
   @Retry(name = "default")
   public UserResponse getUserById(UUID userId) {
     log.debug("Fetching user by ID: {}", userId);
-    
+
     validateUserId(userId);
 
     User user = userRepository.findById(userId)
-        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+        .orElseThrow(() -> UserNotFoundException.userNotFoundById(userId.toString()));
 
     checkUserActive(user);
     return userMapper.toResponse(user);
@@ -138,7 +140,8 @@ public class UserServiceImpl implements UserService {
    */
   public UserResponse getUserByIdFallback(UUID userId, Exception ex) {
     log.error("Get user by ID fallback triggered for ID: {}, error: {}", userId, ex.getMessage());
-    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
+    throw new ServiceUnavailableException(
+        "We're experiencing temporary service issues. Please try to retrieve the user information again in a few minutes.");
   }
 
   @Override
@@ -148,11 +151,11 @@ public class UserServiceImpl implements UserService {
   @Retry(name = "default")
   public UserResponse getUserByUsername(String username) {
     log.debug("Fetching user by username: {}", username);
-    
+
     validateUsername(username);
 
     User user = userRepository.findByUsername(username)
-        .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
+        .orElseThrow(() -> UserNotFoundException.userNotFoundByUsername(username));
 
     checkUserActive(user);
     return userMapper.toResponse(user);
@@ -163,7 +166,8 @@ public class UserServiceImpl implements UserService {
    */
   public UserResponse getUserByUsernameFallback(String username, Exception ex) {
     log.error("Get user by username fallback triggered for username: {}, error: {}", username, ex.getMessage());
-    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
+    throw new ServiceUnavailableException(
+        "We're experiencing temporary service issues. Please try to retrieve the user information again in a few minutes.");
   }
 
   @Override
@@ -173,11 +177,11 @@ public class UserServiceImpl implements UserService {
   @Retry(name = "default")
   public UserResponse getUserByEmail(String email) {
     log.debug("Fetching user by email: {}", email);
-    
+
     validateEmail(email);
 
     User user = userRepository.findByEmail(email)
-        .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+        .orElseThrow(() -> UserNotFoundException.userNotFoundByEmail(email));
 
     checkUserActive(user);
     return userMapper.toResponse(user);
@@ -188,7 +192,8 @@ public class UserServiceImpl implements UserService {
    */
   public UserResponse getUserByEmailFallback(String email, Exception ex) {
     log.error("Get user by email fallback triggered for email: {}, error: {}", email, ex.getMessage());
-    throw new ServiceUnavailableException("User service is temporarily unavailable. Please try again later.");
+    throw new ServiceUnavailableException(
+        "We're experiencing temporary service issues. Please try to retrieve the user information again in a few minutes.");
   }
 
   @Override
@@ -580,58 +585,58 @@ public class UserServiceImpl implements UserService {
   }
 
   /**
-   * Validates username format.
+   * Validates username.
    * 
    * @param username the username to validate
    * @throws UserValidationException if username is invalid
    */
   private void validateUsername(String username) {
     if (username == null || username.trim().isEmpty()) {
-      throw new UserValidationException("Username cannot be null or empty");
+      throw UserValidationException.fieldRequired("Username");
     }
 
-    if (username.length() < 3 || username.length() > 100) {
-      throw new UserValidationException("Username must be between 3 and 100 characters");
+    if (username.length() > 50) {
+      throw UserValidationException.fieldTooLong("Username", 50);
     }
 
-    if (!username.matches("^[a-zA-Z0-9_-]+$")) {
-      throw new UserValidationException("Username can only contain letters, numbers, underscores, and hyphens");
+    if (!username.matches("^[a-zA-Z0-9_]+$")) {
+      throw UserValidationException.invalidUsername(username);
     }
   }
 
   /**
-   * Validates email format.
+   * Validates email.
    * 
    * @param email the email to validate
    * @throws UserValidationException if email is invalid
    */
   private void validateEmail(String email) {
     if (email == null || email.trim().isEmpty()) {
-      throw new UserValidationException("Email cannot be null or empty");
+      throw UserValidationException.fieldRequired("Email");
     }
 
     if (email.length() > 255) {
-      throw new UserValidationException("Email cannot exceed 255 characters");
+      throw UserValidationException.fieldTooLong("Email", 255);
     }
 
-    if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-      throw new UserValidationException("Invalid email format");
+    if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+      throw UserValidationException.invalidEmail(email);
     }
   }
 
   /**
-   * Validates department name.
+   * Validates department.
    * 
    * @param department the department to validate
    * @throws UserValidationException if department is invalid
    */
   private void validateDepartment(String department) {
     if (department == null || department.trim().isEmpty()) {
-      throw new UserValidationException("Department cannot be null or empty");
+      throw UserValidationException.fieldRequired("Department");
     }
 
     if (department.length() > 100) {
-      throw new UserValidationException("Department cannot exceed 100 characters");
+      throw UserValidationException.fieldTooLong("Department", 100);
     }
   }
 
@@ -643,11 +648,59 @@ public class UserServiceImpl implements UserService {
    */
   private void validateCompany(String company) {
     if (company == null || company.trim().isEmpty()) {
-      throw new UserValidationException("Company cannot be null or empty");
+      throw UserValidationException.fieldRequired("Company");
     }
 
     if (company.length() > 100) {
-      throw new UserValidationException("Company cannot exceed 100 characters");
+      throw UserValidationException.fieldTooLong("Company", 100);
+    }
+  }
+
+  /**
+   * Validates age.
+   * 
+   * @param age the age to validate
+   * @throws UserValidationException if age is invalid
+   */
+  private void validateAge(Integer age) {
+    if (age == null) {
+      throw UserValidationException.fieldRequired("Age");
+    }
+
+    if (age < 13 || age > 120) {
+      throw UserValidationException.invalidAge(age);
+    }
+  }
+
+  /**
+   * Validates first name.
+   * 
+   * @param firstName the first name to validate
+   * @throws UserValidationException if first name is invalid
+   */
+  private void validateFirstName(String firstName) {
+    if (firstName == null || firstName.trim().isEmpty()) {
+      throw UserValidationException.fieldRequired("First name");
+    }
+
+    if (firstName.length() > 50) {
+      throw UserValidationException.fieldTooLong("First name", 50);
+    }
+  }
+
+  /**
+   * Validates last name.
+   * 
+   * @param lastName the last name to validate
+   * @throws UserValidationException if last name is invalid
+   */
+  private void validateLastName(String lastName) {
+    if (lastName == null || lastName.trim().isEmpty()) {
+      throw UserValidationException.fieldRequired("Last name");
+    }
+
+    if (lastName.length() > 50) {
+      throw UserValidationException.fieldTooLong("Last name", 50);
     }
   }
 
@@ -663,11 +716,11 @@ public class UserServiceImpl implements UserService {
     }
 
     if (user.isDeleted()) {
-      throw new UserNotFoundException("User has been deleted");
+      throw new UserNotFoundException("User account has been deleted and is no longer accessible");
     }
 
     if (user.getStatus() != UserStatus.ACTIVE) {
-      throw new UserNotFoundException("User is not active");
+      throw new UserNotFoundException("User account is currently inactive. Please contact support for assistance.");
     }
   }
 
@@ -702,12 +755,16 @@ public class UserServiceImpl implements UserService {
     if (message != null) {
       if (message.contains("username") || message.contains("idx_users_username")) {
         log.warn("Username constraint violation: {}", message);
+        throw UserAlreadyExistsException.usernameAlreadyExists("the requested username");
       } else if (message.contains("email") || message.contains("idx_users_email")) {
         log.warn("Email constraint violation: {}", message);
+        throw UserAlreadyExistsException.emailAlreadyExists("the requested email");
       } else {
         log.warn("Data integrity constraint violation: {}", message);
+        throw new UserAlreadyExistsException("User with provided information already exists");
       }
     }
+    throw new UserAlreadyExistsException("User with provided information already exists");
   }
 
   /**

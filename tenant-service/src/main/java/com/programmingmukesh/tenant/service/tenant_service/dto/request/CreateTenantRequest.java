@@ -154,7 +154,10 @@ public class CreateTenantRequest {
    */
   public void setTrialDefaults() {
     if (isTrial == null || isTrial) {
-      this.planType = PlanType.TRIAL;
+      // Only set planType to TRIAL if no planType is explicitly specified
+      if (this.planType == null) {
+        this.planType = PlanType.TRIAL;
+      }
       this.maxUsers = Math.min(maxUsers != null ? maxUsers : 5, 5); // Trial limited to 5 users
       this.maxStorageGb = Math.min(maxStorageGb != null ? maxStorageGb : 10, 10); // Trial limited to 10GB
 
@@ -162,5 +165,87 @@ public class CreateTenantRequest {
         this.trialEndsAt = LocalDateTime.now().plusDays(14); // Default 14-day trial
       }
     }
+  }
+
+  /**
+   * Validates that trial tenants have appropriate plan types and limits.
+   * 
+   * @return true if the trial configuration is valid
+   */
+  public boolean isTrialConfigurationValid() {
+    if (Boolean.TRUE.equals(isTrial)) {
+      // For trial tenants, ensure plan type is appropriate
+      if (planType != null && planType != PlanType.TRIAL && planType != PlanType.BASIC) {
+        return false; // Trial tenants should use TRIAL or BASIC plan
+      }
+
+      // Ensure trial limits are respected
+      if (maxUsers != null && maxUsers > 5) {
+        return false; // Trial limited to 5 users
+      }
+
+      if (maxStorageGb != null && maxStorageGb > 10) {
+        return false; // Trial limited to 10GB
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Gets a user-friendly error message for validation failures.
+   * 
+   * @return error message if validation fails, null if valid
+   */
+  public String getValidationErrorMessage() {
+    if (!hasMinimumRequiredInfo()) {
+      return "Tenant name and subdomain are required.";
+    }
+
+    if (!isSubdomainValid()) {
+      return "Subdomain must be between 3-100 characters and contain only lowercase letters, numbers, and hyphens.";
+    }
+
+    if (!hasContactMethod()) {
+      return "At least one contact method (email or phone) is required.";
+    }
+
+    if (!isTrialConfigurationValid()) {
+      if (Boolean.TRUE.equals(isTrial)) {
+        if (planType != null && planType != PlanType.TRIAL && planType != PlanType.BASIC) {
+          return "Trial tenants can only use BASIC or TRIAL plan types.";
+        }
+        if (maxUsers != null && maxUsers > 5) {
+          return "Trial tenants are limited to 5 users maximum.";
+        }
+        if (maxStorageGb != null && maxStorageGb > 10) {
+          return "Trial tenants are limited to 10GB storage maximum.";
+        }
+      }
+    }
+
+    return null; // No validation errors
+  }
+
+  /**
+   * Gets the allowed values for plan types.
+   * 
+   * @return array of allowed plan type values
+   */
+  public static String[] getAllowedPlanTypes() {
+    PlanType[] values = PlanType.values();
+    String[] allowedValues = new String[values.length];
+    for (int i = 0; i < values.length; i++) {
+      allowedValues[i] = values[i].name();
+    }
+    return allowedValues;
+  }
+
+  /**
+   * Gets the allowed values for tenant statuses.
+   * 
+   * @return array of allowed tenant status values
+   */
+  public static String[] getAllowedTenantStatuses() {
+    return new String[] { "ACTIVE", "INACTIVE", "SUSPENDED", "PENDING", "DELETED" };
   }
 }

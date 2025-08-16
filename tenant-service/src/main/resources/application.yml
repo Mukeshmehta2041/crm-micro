@@ -44,8 +44,7 @@ spring:
 # Server Configuration
 server:
   port: 8082
-  servlet:
-    context-path: /tenant
+
 
 # Eureka Configuration
 eureka:
@@ -77,8 +76,10 @@ management:
 logging:
   level:
     com.programmingmukesh.tenant: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate: WARN
+    org.springframework.orm.jpa: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -58,8 +58,8 @@ services:
       - DATABASE_DRIVER=org.postgresql.Driver
       - JPA_DDL_AUTO=create-drop
       - EUREKA_URL=http://service-registry:8761/eureka/
-      - USERS_SERVICE_URL=http://users-service:8082
-      - TENANT_SERVICE_URL=http://tenant-service:8083
+      - USERS_SERVICE_URL=http://users-service:8083
+      - TENANT_SERVICE_URL=http://tenant-service:8082
       - APP_ENVIRONMENT=docker
       - LOG_LEVEL_APP=DEBUG
     networks:
@@ -76,12 +76,12 @@ services:
       retries: 3
       start_period: 45s
 
-  # Users Service
-  users-service:
+  # Tenant Service
+  tenant-service:
     build:
-      context: ./users-service
+      context: ./tenant-service
       dockerfile: Dockerfile
-    container_name: crm-users-service
+    container_name: crm-tenant-service
     ports:
       - "8082:8082"
     environment:
@@ -92,6 +92,8 @@ services:
       - DATABASE_DRIVER=org.postgresql.Driver
       - JPA_DDL_AUTO=create-drop
       - EUREKA_URL=http://service-registry:8761/eureka/
+      - USERS_SERVICE_URL=http://users-service:8083
+      - AUTH_SERVICE_URL=http://auth-service:8081
       - APP_ENVIRONMENT=docker
       - LOG_LEVEL_APP=DEBUG
       - SWAGGER_ENABLED=true
@@ -109,12 +111,12 @@ services:
       retries: 3
       start_period: 45s
 
-  # Tenant Service
-  tenant-service:
+  # Users Service
+  users-service:
     build:
-      context: ./tenant-service
+      context: ./users-service
       dockerfile: Dockerfile
-    container_name: crm-tenant-service
+    container_name: crm-users-service
     ports:
       - "8083:8083"
     environment:
@@ -125,8 +127,6 @@ services:
       - DATABASE_DRIVER=org.postgresql.Driver
       - JPA_DDL_AUTO=create-drop
       - EUREKA_URL=http://service-registry:8761/eureka/
-      - USERS_SERVICE_URL=http://users-service:8082
-      - AUTH_SERVICE_URL=http://auth-service:8081
       - APP_ENVIRONMENT=docker
       - LOG_LEVEL_APP=DEBUG
       - SWAGGER_ENABLED=true

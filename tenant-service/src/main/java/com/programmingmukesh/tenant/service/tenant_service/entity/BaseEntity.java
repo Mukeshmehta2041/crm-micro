@@ -61,8 +61,7 @@ public abstract class BaseEntity {
    * For Tenant entity, this will be self-referencing (same as id).
    * For other entities, this references the tenant they belong to.
    */
-  @Column(name = "tenant_id", nullable = false, length = 36)
-  @NotNull(message = "Tenant ID cannot be null")
+  @Column(name = "tenant_id", length = 36)
   private UUID tenantId;
 
   /**

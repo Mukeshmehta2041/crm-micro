@@ -10,6 +10,9 @@ import com.programmingmukesh.auth.service.auth_service.dto.ApiResponse;
 import com.programmingmukesh.auth.service.auth_service.dto.request.CreateTenantRequest;
 import com.programmingmukesh.auth.service.auth_service.dto.response.TenantResponse;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+
 /**
  * Feign client for communicating with the Tenant Service.
  * 
@@ -36,6 +39,8 @@ public interface TenantServiceClient {
    * @return the created tenant response
    */
   @PostMapping("/api/v1/tenants")
+  @CircuitBreaker(name = "tenant-service-cb")
+  @Retry(name = "tenant-service-retry")
   ApiResponse<TenantResponse> createTenant(@RequestBody CreateTenantRequest request);
 
   /**
@@ -45,6 +50,8 @@ public interface TenantServiceClient {
    * @return the tenant response
    */
   @GetMapping("/api/v1/tenants/{tenantId}")
+  @CircuitBreaker(name = "tenant-service-cb")
+  @Retry(name = "tenant-service-retry")
   ApiResponse<TenantResponse> getTenantById(@PathVariable("tenantId") UUID tenantId);
 
   /**
@@ -54,6 +61,8 @@ public interface TenantServiceClient {
    * @return the tenant response
    */
   @GetMapping("/api/v1/tenants/subdomain/{subdomain}")
+  @CircuitBreaker(name = "tenant-service-cb")
+  @Retry(name = "tenant-service-retry")
   ApiResponse<TenantResponse> getTenantBySubdomain(@PathVariable("subdomain") String subdomain);
 
   /**
@@ -63,5 +72,7 @@ public interface TenantServiceClient {
    * @return availability response
    */
   @GetMapping("/api/v1/tenants/check-subdomain/{subdomain}")
+  @CircuitBreaker(name = "tenant-service-cb")
+  @Retry(name = "tenant-service-retry")
   ApiResponse<Boolean> checkSubdomainAvailability(@PathVariable("subdomain") String subdomain);
 }

@@ -17,6 +17,9 @@ import com.programmingmukesh.auth.service.auth_service.service.CompleteRegistrat
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Authentication Controller for user authentication operations.
  * 
@@ -188,6 +191,28 @@ public class AuthController {
         .success(true)
         .message(message)
         .data(available)
+        .build());
+  }
+
+  /**
+   * Health check endpoint to monitor service status.
+   * 
+   * @return ResponseEntity containing service health information
+   */
+  @GetMapping("/health")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> getHealthStatus() {
+    log.debug("Health check requested");
+
+    Map<String, Object> healthInfo = new HashMap<>();
+    healthInfo.put("status", "UP");
+    healthInfo.put("timestamp", System.currentTimeMillis());
+    healthInfo.put("ongoingRegistrations", completeRegistrationService.getOngoingRegistrationsCount());
+    healthInfo.put("service", "Auth Service");
+
+    return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+        .success(true)
+        .message("Service is healthy")
+        .data(healthInfo)
         .build());
   }
 

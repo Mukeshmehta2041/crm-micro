@@ -72,4 +72,25 @@ public interface CompleteRegistrationService {
    * @return true if the company name is available
    */
   boolean isCompanyNameAvailable(String companyName);
+
+  /**
+   * Gets the current number of ongoing registrations.
+   * Useful for monitoring and debugging.
+   * 
+   * @return the number of ongoing registrations
+   */
+  int getOngoingRegistrationsCount();
+
+  /**
+   * Gets the current ongoing registrations for monitoring.
+   * 
+   * @return a copy of the ongoing registrations map
+   */
+  java.util.concurrent.ConcurrentMap<String, Boolean> getOngoingRegistrations();
+
+  /**
+   * Clears all ongoing registrations.
+   * Use with caution - only for service restart or emergency cleanup.
+   */
+  void clearOngoingRegistrations();
 }

@@ -119,7 +119,25 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex) {
     log.warn("Runtime exception: {}", ex.getMessage());
 
-    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+    // Determine appropriate status code based on error message
+    HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+    String message = ex.getMessage();
+    
+    if (message != null) {
+      if (message.contains("already exists") || message.contains("already taken")) {
+        status = HttpStatus.CONFLICT;
+      } else if (message.contains("not available") || message.contains("unavailable")) {
+        status = HttpStatus.SERVICE_UNAVAILABLE;
+      } else if (message.contains("not found")) {
+        status = HttpStatus.NOT_FOUND;
+      } else if (message.contains("validation") || message.contains("invalid")) {
+        status = HttpStatus.BAD_REQUEST;
+      } else if (message.contains("Failed to create") || message.contains("Registration failed")) {
+        status = HttpStatus.BAD_REQUEST;
+      }
+    }
+
+    return ResponseEntity.status(status)
         .body(ApiResponse.builder()
             .success(false)
             .message(ex.getMessage())

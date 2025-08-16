@@ -70,8 +70,9 @@ public class TenantServiceImpl implements TenantService {
       throw new TenantAlreadyExistsException("Custom domain '" + request.getCustomDomain() + "' is already taken");
     }
 
-    // Set trial defaults if needed
-    if (Boolean.TRUE.equals(request.getIsTrial())) {
+    // Set trial defaults only if no planType is explicitly specified and isTrial is
+    // true
+    if (Boolean.TRUE.equals(request.getIsTrial()) && request.getPlanType() == null) {
       request.setTrialDefaults();
     }
 
