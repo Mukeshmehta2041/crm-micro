@@ -44,8 +44,6 @@ spring:
 # Server Configuration
 server:
   port: 8083
-  servlet:
-    context-path: /users
 
 # Eureka Configuration
 eureka:

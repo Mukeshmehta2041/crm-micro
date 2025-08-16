@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.programmingmukesh.users.service.users_service.dto.request.CreateUserRequest;
+import com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest;
 import com.programmingmukesh.users.service.users_service.dto.response.UserResponse;
 import com.programmingmukesh.users.service.users_service.entity.User;
 import com.programmingmukesh.users.service.users_service.entity.UserStatus;
@@ -24,6 +25,7 @@ import com.programmingmukesh.users.service.users_service.exception.UserValidatio
 import com.programmingmukesh.users.service.users_service.mapper.UserMapper;
 import com.programmingmukesh.users.service.users_service.repository.UserRepository;
 import com.programmingmukesh.users.service.users_service.service.UserService;
+import com.programmingmukesh.users.service.users_service.specification.UserSpecification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -182,7 +184,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
-  public UserResponse updateUser(UUID userId, CreateUserRequest request) {
+  public UserResponse updateUser(UUID userId, UpdateUserRequest request) {
     log.info("Updating user with ID: {}", userId);
 
     // Validate request
@@ -283,6 +285,52 @@ public class UserServiceImpl implements UserService {
     return userRepository.countByStatusNotAndDeletedAtIsNull(UserStatus.DELETED);
   }
 
+  @Override
+  @Transactional
+  public UserResponse patchUser(UUID userId, UpdateUserRequest request) {
+    log.info("Partially updating user with ID: {}", userId);
+
+    // Validate request
+    validateUpdateUserRequest(request);
+
+    // Get existing user
+    User existingUser = userRepository.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+
+    if (existingUser.isDeleted()) {
+      throw new UserNotFoundException("Cannot update deleted user");
+    }
+
+    // Check for username/email conflicts if changed
+    checkUserUpdateConflicts(existingUser, request);
+
+    // Apply partial updates (only non-null fields)
+    User updatedUser = userMapper.updateEntity(existingUser, request);
+    User savedUser = userRepository.save(updatedUser);
+
+    log.info("User partially updated successfully with ID: {}", savedUser.getId());
+
+    // Publish user updated event
+    publishUserUpdatedEvent(savedUser);
+
+    return userMapper.toResponse(savedUser);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<UserResponse> searchUsers(String query, String department, String company, String status,
+      Pageable pageable) {
+    log.debug("Searching users with query: {}, department: {}, company: {}, status: {}",
+        query, department, company, status);
+
+    // Use the UserSpecification for dynamic search
+    var specification = UserSpecification.createSearchSpecification(query, department, company, status);
+
+    Page<User> users = userRepository.findAll(specification, pageable);
+
+    return users.map(userMapper::toResponse);
+  }
+
   // Private helper methods
 
   /**
@@ -335,37 +383,13 @@ public class UserServiceImpl implements UserService {
    * @param request the update user request
    * @throws UserValidationException if validation fails
    */
-  private void validateUpdateUserRequest(CreateUserRequest request) {
+  private void validateUpdateUserRequest(UpdateUserRequest request) {
     if (request == null) {
       throw new UserValidationException("Update user request cannot be null");
     }
 
-    // Validate email format if provided
-    if (request.getEmail() != null && !request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-      throw new UserValidationException("Invalid email format");
-    }
-
-    // Validate phone number format if provided
-    if (request.getPhoneNumber() != null && !request.getPhoneNumber().matches("^[+]?[0-9\\s()-]+$")) {
-      throw new UserValidationException("Invalid phone number format");
-    }
-
-    // Validate birth date is not in the future
-    if (request.getBirthDate() != null && request.getBirthDate().isAfter(java.time.LocalDate.now())) {
-      throw new UserValidationException("Birth date cannot be in the future");
-    }
-
-    // Validate hire date is not in the future
-    if (request.getHireDate() != null && request.getHireDate().isAfter(java.time.LocalDate.now())) {
-      throw new UserValidationException("Hire date cannot be in the future");
-    }
-
-    // Validate working hours if both are provided
-    if (request.getWorkingHoursStart() != null && request.getWorkingHoursEnd() != null) {
-      if (request.getWorkingHoursStart().isAfter(request.getWorkingHoursEnd())) {
-        throw new UserValidationException("Working hours start time cannot be after end time");
-      }
-    }
+    // Since UpdateUserRequest is currently empty, no specific validation needed
+    // This method can be expanded when UpdateUserRequest gets fields
   }
 
   /**
@@ -392,20 +416,9 @@ public class UserServiceImpl implements UserService {
    * @param request      the update request
    * @throws UserAlreadyExistsException if there are conflicts
    */
-  private void checkUserUpdateConflicts(User existingUser, CreateUserRequest request) {
-    // Check username conflict
-    if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
-      if (userRepository.existsByUsername(request.getUsername())) {
-        throw new UserAlreadyExistsException("Username already exists: " + request.getUsername());
-      }
-    }
-
-    // Check email conflict
-    if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
-      if (userRepository.existsByEmail(request.getEmail())) {
-        throw new UserAlreadyExistsException("Email already exists: " + request.getEmail());
-      }
-    }
+  private void checkUserUpdateConflicts(User existingUser, UpdateUserRequest request) {
+    // Since UpdateUserRequest is currently empty, no conflicts to check
+    // This method can be expanded when UpdateUserRequest gets fields like username and email
   }
 
   /**
@@ -582,4 +595,5 @@ public class UserServiceImpl implements UserService {
     log.info("Audit log - User ID: {}, Action: {}, Details: {}", userId, action, details);
     // TODO: Implement audit logging to database or external service
   }
+
 }

@@ -22,7 +22,7 @@ import com.programmingmukesh.users.service.users_service.entity.UserStatus;
  * @since 2024
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, UUID> {
+public interface UserRepository extends JpaRepository<User, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<User> {
 
   /**
    * Finds a user by username.

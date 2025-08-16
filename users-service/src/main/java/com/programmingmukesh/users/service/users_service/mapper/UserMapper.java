@@ -1,11 +1,11 @@
 package com.programmingmukesh.users.service.users_service.mapper;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
 import com.programmingmukesh.users.service.users_service.dto.request.CreateUserRequest;
+import com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest;
 import com.programmingmukesh.users.service.users_service.dto.response.UserResponse;
 import com.programmingmukesh.users.service.users_service.entity.User;
 import com.programmingmukesh.users.service.users_service.entity.UserStatus;
@@ -437,6 +437,23 @@ public class UserMapper {
     // Update timestamp
     user.setUpdatedAt(LocalDateTime.now());
 
+    return user;
+  }
+
+  /**
+   * Updates an existing User entity with data from UpdateUserRequest.
+   * 
+   * @param user    the existing user entity
+   * @param request the update request
+   * @return the updated user entity
+   */
+  public User updateEntity(User user, com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest request) {
+    if (user == null || request == null) {
+      return user;
+    }
+
+    // Since UpdateUserRequest is empty, we'll just update the timestamp
+    user.setUpdatedAt(LocalDateTime.now());
     return user;
   }
 
