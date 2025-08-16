@@ -28,14 +28,6 @@ import com.programmingmukesh.users.service.users_service.exception.UserNotFoundE
 import com.programmingmukesh.users.service.users_service.exception.UserValidationException;
 import com.programmingmukesh.users.service.users_service.service.UserService;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -66,8 +58,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Validated
-@Tag(name = "User Management", description = "Operations for managing user profiles and accounts")
-@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
   private final UserService userService;
@@ -78,91 +68,9 @@ public class UserController {
    * @param request the create user request
    * @return the created user response
    */
-  @Operation(
-      summary = "Create a new user",
-      description = "Creates a new user account with the provided information. " +
-                   "Username and email must be unique across the system.",
-      tags = {"User Management"}
-  )
-  @ApiResponses(value = {
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "201",
-          description = "User created successfully",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(
-                  name = "Success Response",
-                  value = """
-                      {
-                        "success": true,
-                        "data": {
-                          "id": "123e4567-e89b-12d3-a456-426614174000",
-                          "username": "john.doe",
-                          "firstName": "John",
-                          "lastName": "Doe",
-                          "email": "john.doe@example.com",
-                          "status": "ACTIVE",
-                          "createdAt": "2024-01-15T10:30:00"
-                        },
-                        "message": "User created successfully",
-                        "timestamp": "2024-01-15T10:30:00"
-                      }
-                      """
-              )
-          )
-      ),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "400",
-          description = "Invalid input data",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(
-                  name = "Validation Error",
-                  value = """
-                      {
-                        "success": false,
-                        "error": "Validation failed",
-                        "message": "Username must be between 3 and 100 characters",
-                        "timestamp": "2024-01-15T10:30:00"
-                      }
-                      """
-              )
-          )
-      ),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "409",
-          description = "User already exists",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(
-                  name = "Conflict Error",
-                  value = """
-                      {
-                        "success": false,
-                        "error": "User already exists",
-                        "message": "User with email john.doe@example.com already exists",
-                        "timestamp": "2024-01-15T10:30:00"
-                      }
-                      """
-              )
-          )
-      ),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-  })
+
   @PostMapping
   public ResponseEntity<ApiResponse<UserResponse>> createUser(
-      @Parameter(
-          description = "User creation request with all required information",
-          required = true,
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = CreateUserRequest.class),
-              examples = @ExampleObject(ref = "#/components/examples/UserCreateExample")
-          )
-      )
       @Valid @RequestBody CreateUserRequest request) {
     log.info("Creating user with username: {}", request.getUsername());
 
@@ -179,33 +87,8 @@ public class UserController {
    * @param userId the user ID
    * @return the user response
    */
-  @Operation(
-      summary = "Get user by ID",
-      description = "Retrieves a user's complete profile information using their unique identifier.",
-      tags = {"User Management"}
-  )
-  @ApiResponses(value = {
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "200",
-          description = "User found successfully",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(ref = "#/components/examples/UserResponseExample")
-          )
-      ),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-  })
   @GetMapping("/{userId}")
   public ResponseEntity<ApiResponse<UserResponse>> getUserById(
-      @Parameter(
-          description = "Unique identifier of the user (UUID format)",
-          required = true,
-          example = "123e4567-e89b-12d3-a456-426614174000",
-          schema = @Schema(type = "string", format = "uuid")
-      )
       @PathVariable @NotNull @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") String userId) {
     log.debug("Fetching user by ID: {}", userId);
 
@@ -252,67 +135,12 @@ public class UserController {
    * @param direction the sort direction
    * @return the page of user responses
    */
-  @Operation(
-      summary = "Get all users with pagination",
-      description = "Retrieves a paginated list of all users with optional sorting. " +
-                   "Supports sorting by various fields and pagination for efficient data retrieval.",
-      tags = {"User Search"}
-  )
-  @ApiResponses(value = {
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "200",
-          description = "Users retrieved successfully",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(
-                  name = "Paginated Users Response",
-                  value = """
-                      {
-                        "success": true,
-                        "data": {
-                          "content": [
-                            {
-                              "id": "123e4567-e89b-12d3-a456-426614174000",
-                              "username": "john.doe",
-                              "firstName": "John",
-                              "lastName": "Doe",
-                              "email": "john.doe@example.com",
-                              "status": "ACTIVE"
-                            }
-                          ],
-                          "pageable": {
-                            "pageNumber": 0,
-                            "pageSize": 20,
-                            "sort": {
-                              "sorted": true,
-                              "ascending": false
-                            }
-                          },
-                          "totalElements": 1,
-                          "totalPages": 1,
-                          "first": true,
-                          "last": true
-                        },
-                        "timestamp": "2024-01-15T10:30:00"
-                      }
-                      """
-              )
-          )
-      ),
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-  })
+
   @GetMapping
   public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
-      @Parameter(description = "Page number (0-based)", example = "0")
       @RequestParam(defaultValue = "0") int page,
-      @Parameter(description = "Number of items per page", example = "20")
       @RequestParam(defaultValue = "20") int size,
-      @Parameter(description = "Field to sort by", example = "createdAt", 
-                 schema = @Schema(allowableValues = {"createdAt", "updatedAt", "firstName", "lastName", "email", "username"}))
       @RequestParam(defaultValue = "createdAt") String sort,
-      @Parameter(description = "Sort direction", example = "DESC",
-                 schema = @Schema(allowableValues = {"ASC", "DESC"}))
       @RequestParam(defaultValue = "DESC") String direction) {
     log.debug("Fetching all users with pagination - page: {}, size: {}, sort: {}, direction: {}",
         page, size, sort, direction);
@@ -459,31 +287,6 @@ public class UserController {
    * 
    * @return the health status
    */
-  @Operation(
-      summary = "Health check",
-      description = "Simple health check endpoint to verify the service is running and responsive.",
-      tags = {"System"}
-  )
-  @ApiResponses(value = {
-      @io.swagger.v3.oas.annotations.responses.ApiResponse(
-          responseCode = "200",
-          description = "Service is healthy",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ApiResponse.class),
-              examples = @ExampleObject(
-                  name = "Health Check Response",
-                  value = """
-                      {
-                        "success": true,
-                        "data": "User service is healthy",
-                        "timestamp": "2024-01-15T10:30:00"
-                      }
-                      """
-              )
-          )
-      )
-  })
   @GetMapping("/health")
   public ResponseEntity<ApiResponse<String>> health() {
     return ResponseEntity.ok(ApiResponse.success("User service is healthy"));

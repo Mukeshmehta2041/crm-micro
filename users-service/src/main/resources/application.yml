@@ -85,15 +85,6 @@ logging:
   file:
     name: logs/users-service.log
 
-# OpenAPI Configuration
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-  show-actuator: true
-
 # Custom Application Properties
 app:
   user:
