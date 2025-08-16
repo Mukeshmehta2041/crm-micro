@@ -99,23 +99,16 @@ public class UserServiceImpl implements UserService {
 
       return userMapper.toResponse(savedUser);
 
-    } catch (UserAlreadyExistsException | UserValidationException e) {
-      throw e;
     } catch (DataIntegrityViolationException e) {
       log.error("Data integrity violation while creating user: {}", e.getMessage());
       handleDataIntegrityViolation(e);
       throw new UserAlreadyExistsException("User with provided username or email already exists");
-    } catch (DataAccessException e) {
-      log.error("Database error while creating user: {}", e.getMessage(), e);
-      throw new ServiceUnavailableException("Database service is temporarily unavailable");
-    } catch (Exception e) {
-      log.error("Unexpected error creating user: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to create user due to unexpected error", e);
     }
   }
 
   /**
    * Fallback method for createUser when circuit breaker is open.
+   * This should only be called for actual system failures, not business exceptions.
    */
   public UserResponse createUserFallback(CreateUserRequest request, Exception ex) {
     log.error("Create user fallback triggered for username: {}, error: {}", 
@@ -131,24 +124,13 @@ public class UserServiceImpl implements UserService {
   public UserResponse getUserById(UUID userId) {
     log.debug("Fetching user by ID: {}", userId);
     
-    try {
-      validateUserId(userId);
+    validateUserId(userId);
 
-      User user = userRepository.findById(userId)
-          .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-      checkUserActive(user);
-      return userMapper.toResponse(user);
-
-    } catch (UserNotFoundException e) {
-      throw e;
-    } catch (DataAccessException e) {
-      log.error("Database error while fetching user by ID {}: {}", userId, e.getMessage());
-      throw new ServiceUnavailableException("Database service is temporarily unavailable");
-    } catch (Exception e) {
-      log.error("Unexpected error while fetching user by ID {}: {}", userId, e.getMessage(), e);
-      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
-    }
+    checkUserActive(user);
+    return userMapper.toResponse(user);
   }
 
   /**
@@ -167,24 +149,13 @@ public class UserServiceImpl implements UserService {
   public UserResponse getUserByUsername(String username) {
     log.debug("Fetching user by username: {}", username);
     
-    try {
-      validateUsername(username);
+    validateUsername(username);
 
-      User user = userRepository.findByUsername(username)
-          .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
 
-      checkUserActive(user);
-      return userMapper.toResponse(user);
-
-    } catch (UserNotFoundException e) {
-      throw e;
-    } catch (DataAccessException e) {
-      log.error("Database error while fetching user by username {}: {}", username, e.getMessage());
-      throw new ServiceUnavailableException("Database service is temporarily unavailable");
-    } catch (Exception e) {
-      log.error("Unexpected error while fetching user by username {}: {}", username, e.getMessage(), e);
-      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
-    }
+    checkUserActive(user);
+    return userMapper.toResponse(user);
   }
 
   /**
@@ -203,24 +174,13 @@ public class UserServiceImpl implements UserService {
   public UserResponse getUserByEmail(String email) {
     log.debug("Fetching user by email: {}", email);
     
-    try {
-      validateEmail(email);
+    validateEmail(email);
 
-      User user = userRepository.findByEmail(email)
-          .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
 
-      checkUserActive(user);
-      return userMapper.toResponse(user);
-
-    } catch (UserNotFoundException e) {
-      throw e;
-    } catch (DataAccessException e) {
-      log.error("Database error while fetching user by email {}: {}", email, e.getMessage());
-      throw new ServiceUnavailableException("Database service is temporarily unavailable");
-    } catch (Exception e) {
-      log.error("Unexpected error while fetching user by email {}: {}", email, e.getMessage(), e);
-      throw new RuntimeException("Failed to fetch user due to unexpected error", e);
-    }
+    checkUserActive(user);
+    return userMapper.toResponse(user);
   }
 
   /**
@@ -406,25 +366,14 @@ public class UserServiceImpl implements UserService {
     log.debug("Searching users with query: {}, department: {}, company: {}, status: {}",
         query, department, company, status);
 
-    try {
-      if (pageable.getPageSize() > MAX_PAGE_SIZE) {
-        throw new UserValidationException("Page size cannot exceed " + MAX_PAGE_SIZE);
-      }
-
-      var specification = UserSpecification.createSearchSpecification(query, department, company, status);
-      Page<User> users = userRepository.findAll(specification, pageable);
-
-      return users.map(userMapper::toResponse);
-
-    } catch (UserValidationException e) {
-      throw e;
-    } catch (DataAccessException e) {
-      log.error("Database error while searching users: {}", e.getMessage());
-      throw new ServiceUnavailableException("Database service is temporarily unavailable");
-    } catch (Exception e) {
-      log.error("Unexpected error while searching users: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to search users due to unexpected error", e);
+    if (pageable.getPageSize() > MAX_PAGE_SIZE) {
+      throw new UserValidationException("Page size cannot exceed " + MAX_PAGE_SIZE);
     }
+
+    var specification = UserSpecification.createSearchSpecification(query, department, company, status);
+    Page<User> users = userRepository.findAll(specification, pageable);
+
+    return users.map(userMapper::toResponse);
   }
 
   /**

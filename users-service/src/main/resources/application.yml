@@ -201,22 +201,51 @@ resilience4j:
         slow-call-rate-threshold: 50
         slow-call-duration-threshold: 2s
         permitted-number-of-calls-in-half-open-state: 3
+        # Ignore business exceptions - only count system failures
+        ignore-exceptions:
+          - com.programmingmukesh.users.service.users_service.exception.UserNotFoundException
+          - com.programmingmukesh.users.service.users_service.exception.UserAlreadyExistsException
+          - com.programmingmukesh.users.service.users_service.exception.UserValidationException
+          - java.lang.IllegalArgumentException
+          - org.springframework.dao.DataIntegrityViolationException
+        # Only record these as failures
+        record-exceptions:
+          - org.springframework.dao.DataAccessException
+          - org.springframework.dao.DataAccessResourceFailureException
+          - org.springframework.dao.TransientDataAccessException
+          - java.sql.SQLException
+          - java.sql.SQLTransientException
       cache:
         register-health-indicator: true
         sliding-window-size: 5
         minimum-number-of-calls: 3
         failure-rate-threshold: 60
         wait-duration-in-open-state: 10s
+        ignore-exceptions:
+          - com.programmingmukesh.users.service.users_service.exception.UserNotFoundException
+          - com.programmingmukesh.users.service.users_service.exception.UserAlreadyExistsException
+          - com.programmingmukesh.users.service.users_service.exception.UserValidationException
 
   retry:
     instances:
       default:
         max-attempts: 3
         wait-duration: 500ms
+        # Only retry on transient system failures
         retry-exceptions:
           - org.springframework.dao.DataAccessResourceFailureException
           - org.springframework.dao.TransientDataAccessException
           - java.sql.SQLException
+          - java.sql.SQLTransientException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+        # Don't retry on business exceptions
+        ignore-exceptions:
+          - com.programmingmukesh.users.service.users_service.exception.UserNotFoundException
+          - com.programmingmukesh.users.service.users_service.exception.UserAlreadyExistsException
+          - com.programmingmukesh.users.service.users_service.exception.UserValidationException
+          - java.lang.IllegalArgumentException
+          - org.springframework.dao.DataIntegrityViolationException
 
   timelimiter:
     instances:
