@@ -447,13 +447,201 @@ public class UserMapper {
    * @param request the update request
    * @return the updated user entity
    */
-  public User updateEntity(User user, com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest request) {
+  public User updateEntity(User user, UpdateUserRequest request) {
     if (user == null || request == null) {
       return user;
     }
 
-    // Since UpdateUserRequest is empty, we'll just update the timestamp
+    // Update basic information (only if provided)
+    if (request.getUsername() != null) {
+      user.setUsername(request.getUsername());
+    }
+    if (request.getFirstName() != null) {
+      user.setFirstName(request.getFirstName());
+    }
+    if (request.getMiddleName() != null) {
+      user.setMiddleName(request.getMiddleName());
+    }
+    if (request.getLastName() != null) {
+      user.setLastName(request.getLastName());
+    }
+    if (request.getDisplayName() != null) {
+      user.setDisplayName(request.getDisplayName());
+    }
+    if (request.getEmail() != null) {
+      user.setEmail(request.getEmail());
+    }
+    if (request.getPhoneNumber() != null) {
+      user.setPhoneNumber(request.getPhoneNumber());
+    }
+    if (request.getWorkPhone() != null) {
+      user.setWorkPhone(request.getWorkPhone());
+    }
+    if (request.getMobilePhone() != null) {
+      user.setMobilePhone(request.getMobilePhone());
+    }
+    if (request.getBirthDate() != null) {
+      user.setBirthDate(request.getBirthDate());
+    }
+    if (request.getHireDate() != null) {
+      user.setHireDate(request.getHireDate());
+    }
+    if (request.getGender() != null) {
+      user.setGender(request.getGender());
+    }
+
+    // Update professional information
+    if (request.getJobTitle() != null) {
+      user.setJobTitle(request.getJobTitle());
+    }
+    if (request.getDepartment() != null) {
+      user.setDepartment(request.getDepartment());
+    }
+    if (request.getCompany() != null) {
+      user.setCompany(request.getCompany());
+    }
+    if (request.getEmployeeId() != null) {
+      user.setEmployeeId(request.getEmployeeId());
+    }
+    if (request.getCostCenter() != null) {
+      user.setCostCenter(request.getCostCenter());
+    }
+    if (request.getOfficeLocation() != null) {
+      user.setOfficeLocation(request.getOfficeLocation());
+    }
+
+    // Update social information
+    if (request.getProfileImageUrl() != null) {
+      user.setProfileImageUrl(request.getProfileImageUrl());
+    }
+    if (request.getBio() != null) {
+      user.setBio(request.getBio());
+    }
+    if (request.getWebsiteUrl() != null) {
+      user.setWebsiteUrl(request.getWebsiteUrl());
+    }
+    if (request.getLinkedinUrl() != null) {
+      user.setLinkedinUrl(request.getLinkedinUrl());
+    }
+    if (request.getTwitterHandle() != null) {
+      user.setTwitterHandle(request.getTwitterHandle());
+    }
+
+    // Update address information
+    if (request.getAddressLine1() != null) {
+      user.setAddressLine1(request.getAddressLine1());
+    }
+    if (request.getAddressLine2() != null) {
+      user.setAddressLine2(request.getAddressLine2());
+    }
+    if (request.getCity() != null) {
+      user.setCity(request.getCity());
+    }
+    if (request.getStateProvince() != null) {
+      user.setStateProvince(request.getStateProvince());
+    }
+    if (request.getPostalCode() != null) {
+      user.setPostalCode(request.getPostalCode());
+    }
+    if (request.getCountry() != null) {
+      user.setCountry(request.getCountry());
+    }
+
+    // Update preferences
+    if (request.getTimezone() != null) {
+      user.setTimezone(request.getTimezone());
+    }
+    if (request.getLanguage() != null) {
+      user.setLanguage(request.getLanguage());
+    }
+    if (request.getDateFormat() != null) {
+      user.setDateFormat(request.getDateFormat());
+    }
+    if (request.getTimeFormat() != null) {
+      user.setTimeFormat(request.getTimeFormat());
+    }
+    if (request.getThemePreference() != null) {
+      user.setThemePreference(request.getThemePreference());
+    }
+    if (request.getCurrencyPreference() != null) {
+      user.setCurrencyPreference(request.getCurrencyPreference());
+    }
+
+    // Update organizational information
+    if (request.getManagerId() != null) {
+      user.setManagerId(request.getManagerId());
+    }
+    if (request.getTeamId() != null) {
+      user.setTeamId(request.getTeamId());
+    }
+
+    // Update work preferences
+    if (request.getWorkingHoursStart() != null) {
+      user.setWorkingHoursStart(request.getWorkingHoursStart());
+    }
+    if (request.getWorkingHoursEnd() != null) {
+      user.setWorkingHoursEnd(request.getWorkingHoursEnd());
+    }
+    if (request.getWorkingDays() != null) {
+      user.setWorkingDays(request.getWorkingDays());
+    }
+    if (request.getSkills() != null) {
+      user.setSkills(request.getSkills());
+    }
+    if (request.getCertifications() != null) {
+      user.setCertifications(request.getCertifications());
+    }
+    if (request.getSpokenLanguages() != null) {
+      user.setSpokenLanguages(request.getSpokenLanguages());
+    }
+
+    // Update emergency contact
+    if (request.getEmergencyContactName() != null) {
+      user.setEmergencyContactName(request.getEmergencyContactName());
+    }
+    if (request.getEmergencyContactPhone() != null) {
+      user.setEmergencyContactPhone(request.getEmergencyContactPhone());
+    }
+    if (request.getEmergencyContactRelationship() != null) {
+      user.setEmergencyContactRelationship(request.getEmergencyContactRelationship());
+    }
+
+    // Update custom fields
+    if (request.getCustomFields() != null) {
+      user.setCustomFields(request.getCustomFields());
+    }
+
+    // Update consent information
+    if (request.getGdprConsentGiven() != null) {
+      user.setGdprConsentGiven(request.getGdprConsentGiven());
+      if (Boolean.TRUE.equals(request.getGdprConsentGiven()) && user.getGdprConsentDate() == null) {
+        user.setGdprConsentDate(LocalDateTime.now());
+      }
+    }
+    if (request.getMarketingConsentGiven() != null) {
+      user.setMarketingConsentGiven(request.getMarketingConsentGiven());
+      if (Boolean.TRUE.equals(request.getMarketingConsentGiven()) && user.getMarketingConsentDate() == null) {
+        user.setMarketingConsentDate(LocalDateTime.now());
+      }
+    }
+
+    // Update visibility preferences
+    if (request.getProfileVisibility() != null) {
+      user.setProfileVisibility(request.getProfileVisibility());
+    }
+    if (request.getActivityVisibility() != null) {
+      user.setActivityVisibility(request.getActivityVisibility());
+    }
+    if (request.getEmailVisibility() != null) {
+      user.setEmailVisibility(request.getEmailVisibility());
+    }
+    if (request.getPhoneVisibility() != null) {
+      user.setPhoneVisibility(request.getPhoneVisibility());
+    }
+
+    // Update timestamp
     user.setUpdatedAt(LocalDateTime.now());
+
     return user;
   }
 

@@ -4,12 +4,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.programmingmukesh.users.service.users_service.dto.request.CreateUserRequest;
 import com.programmingmukesh.users.service.users_service.dto.request.UpdateUserRequest;
@@ -55,6 +58,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Transactional
 public class UserServiceImpl implements UserService {
+
+  private static final int MAX_PAGE_SIZE = 100;
 
   private final UserRepository userRepository;
   private final UserMapper userMapper;
@@ -104,46 +109,48 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional(readOnly = true)
+  @Cacheable(value = "users", key = "#userId")
   public UserResponse getUserById(UUID userId) {
     log.debug("Fetching user by ID: {}", userId);
+    
+    validateUserId(userId);
 
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-    // Check if user is deleted
-    if (user.isDeleted()) {
-      throw new UserNotFoundException("User has been deleted");
-    }
+    checkUserActive(user);
 
     return userMapper.toResponse(user);
   }
 
   @Override
   @Transactional(readOnly = true)
+  @Cacheable(value = "users", key = "'username:' + #username")
   public UserResponse getUserByUsername(String username) {
     log.debug("Fetching user by username: {}", username);
+    
+    validateUsername(username);
 
     User user = userRepository.findByUsername(username)
         .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
 
-    if (user.isDeleted()) {
-      throw new UserNotFoundException("User has been deleted");
-    }
+    checkUserActive(user);
 
     return userMapper.toResponse(user);
   }
 
   @Override
   @Transactional(readOnly = true)
+  @Cacheable(value = "users", key = "'email:' + #email")
   public UserResponse getUserByEmail(String email) {
     log.debug("Fetching user by email: {}", email);
+    
+    validateEmail(email);
 
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
 
-    if (user.isDeleted()) {
-      throw new UserNotFoundException("User has been deleted");
-    }
+    checkUserActive(user);
 
     return userMapper.toResponse(user);
   }
@@ -184,30 +191,24 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "users", allEntries = true)
   public UserResponse updateUser(UUID userId, UpdateUserRequest request) {
     log.info("Updating user with ID: {}", userId);
 
-    // Validate request
+    validateUserId(userId);
     validateUpdateUserRequest(request);
 
-    // Get existing user
     User existingUser = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-    if (existingUser.isDeleted()) {
-      throw new UserNotFoundException("Cannot update deleted user");
-    }
-
-    // Check for username/email conflicts if changed
+    checkUserActive(existingUser);
     checkUserUpdateConflicts(existingUser, request);
 
-    // Update user
     User updatedUser = userMapper.updateEntity(existingUser, request);
     User savedUser = userRepository.save(updatedUser);
 
     log.info("User updated successfully with ID: {}", savedUser.getId());
-
-    // Publish user updated event
+    logUserActivity(userId, "USER_UPDATED");
     publishUserUpdatedEvent(savedUser);
 
     return userMapper.toResponse(savedUser);
@@ -215,8 +216,11 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "users", allEntries = true)
   public void deleteUser(UUID userId) {
     log.info("Deleting user with ID: {}", userId);
+
+    validateUserId(userId);
 
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
@@ -225,20 +229,21 @@ public class UserServiceImpl implements UserService {
       throw new UserNotFoundException("User is already deleted");
     }
 
-    // Soft delete
     user.softDelete();
     userRepository.save(user);
 
     log.info("User deleted successfully with ID: {}", userId);
-
-    // Publish user deleted event
+    logUserActivity(userId, "USER_DELETED");
     publishUserDeletedEvent(user);
   }
 
   @Override
   @Transactional
+  @CacheEvict(value = "users", allEntries = true)
   public void activateUser(UUID userId) {
     log.info("Activating user with ID: {}", userId);
+
+    validateUserId(userId);
 
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
@@ -252,12 +257,16 @@ public class UserServiceImpl implements UserService {
     userRepository.save(user);
 
     log.info("User activated successfully with ID: {}", userId);
+    logUserActivity(userId, "USER_ACTIVATED");
   }
 
   @Override
   @Transactional
+  @CacheEvict(value = "users", allEntries = true)
   public void deactivateUser(UUID userId) {
     log.info("Deactivating user with ID: {}", userId);
+
+    validateUserId(userId);
 
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
@@ -271,6 +280,7 @@ public class UserServiceImpl implements UserService {
     userRepository.save(user);
 
     log.info("User deactivated successfully with ID: {}", userId);
+    logUserActivity(userId, "USER_DEACTIVATED");
   }
 
   @Override
@@ -287,30 +297,24 @@ public class UserServiceImpl implements UserService {
 
   @Override
   @Transactional
+  @CacheEvict(value = "users", allEntries = true)
   public UserResponse patchUser(UUID userId, UpdateUserRequest request) {
     log.info("Partially updating user with ID: {}", userId);
 
-    // Validate request
+    validateUserId(userId);
     validateUpdateUserRequest(request);
 
-    // Get existing user
     User existingUser = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-    if (existingUser.isDeleted()) {
-      throw new UserNotFoundException("Cannot update deleted user");
-    }
-
-    // Check for username/email conflicts if changed
+    checkUserActive(existingUser);
     checkUserUpdateConflicts(existingUser, request);
 
-    // Apply partial updates (only non-null fields)
     User updatedUser = userMapper.updateEntity(existingUser, request);
     User savedUser = userRepository.save(updatedUser);
 
     log.info("User partially updated successfully with ID: {}", savedUser.getId());
-
-    // Publish user updated event
+    logUserActivity(userId, "USER_PATCHED");
     publishUserUpdatedEvent(savedUser);
 
     return userMapper.toResponse(savedUser);
@@ -323,9 +327,11 @@ public class UserServiceImpl implements UserService {
     log.debug("Searching users with query: {}, department: {}, company: {}, status: {}",
         query, department, company, status);
 
-    // Use the UserSpecification for dynamic search
-    var specification = UserSpecification.createSearchSpecification(query, department, company, status);
+    if (pageable.getPageSize() > MAX_PAGE_SIZE) {
+      throw new UserValidationException("Page size cannot exceed " + MAX_PAGE_SIZE);
+    }
 
+    var specification = UserSpecification.createSearchSpecification(query, department, company, status);
     Page<User> users = userRepository.findAll(specification, pageable);
 
     return users.map(userMapper::toResponse);
@@ -388,8 +394,41 @@ public class UserServiceImpl implements UserService {
       throw new UserValidationException("Update user request cannot be null");
     }
 
-    // Since UpdateUserRequest is currently empty, no specific validation needed
-    // This method can be expanded when UpdateUserRequest gets fields
+    if (!request.hasUpdates()) {
+      throw new UserValidationException("At least one field must be provided for update");
+    }
+
+    // Validate email format if provided
+    if (request.getEmail() != null && !request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+      throw new UserValidationException("Invalid email format");
+    }
+
+    // Validate phone number format if provided
+    if (request.getPhoneNumber() != null && !request.getPhoneNumber().matches("^[+]?[0-9\\s()-]+$")) {
+      throw new UserValidationException("Invalid phone number format");
+    }
+
+    // Validate birth date is not in the future
+    if (request.getBirthDate() != null && request.getBirthDate().isAfter(java.time.LocalDate.now())) {
+      throw new UserValidationException("Birth date cannot be in the future");
+    }
+
+    // Validate hire date is not in the future
+    if (request.getHireDate() != null && request.getHireDate().isAfter(java.time.LocalDate.now())) {
+      throw new UserValidationException("Hire date cannot be in the future");
+    }
+
+    // Validate working hours if both are provided
+    if (request.getWorkingHoursStart() != null && request.getWorkingHoursEnd() != null) {
+      if (request.getWorkingHoursStart().isAfter(request.getWorkingHoursEnd())) {
+        throw new UserValidationException("Working hours start time cannot be after end time");
+      }
+    }
+
+    // Validate username format if provided
+    if (request.getUsername() != null) {
+      validateUsername(request.getUsername());
+    }
   }
 
   /**
@@ -417,8 +456,19 @@ public class UserServiceImpl implements UserService {
    * @throws UserAlreadyExistsException if there are conflicts
    */
   private void checkUserUpdateConflicts(User existingUser, UpdateUserRequest request) {
-    // Since UpdateUserRequest is currently empty, no conflicts to check
-    // This method can be expanded when UpdateUserRequest gets fields like username and email
+    // Check username conflict
+    if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
+      if (userRepository.existsByUsername(request.getUsername())) {
+        throw new UserAlreadyExistsException("Username already exists: " + request.getUsername());
+      }
+    }
+
+    // Check email conflict
+    if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
+      if (userRepository.existsByEmail(request.getEmail())) {
+        throw new UserAlreadyExistsException("Email already exists: " + request.getEmail());
+      }
+    }
   }
 
   /**
@@ -568,7 +618,7 @@ public class UserServiceImpl implements UserService {
       throw new UserNotFoundException("User has been deleted");
     }
 
-    if (!user.isActive()) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
       throw new UserNotFoundException("User is not active");
     }
   }
